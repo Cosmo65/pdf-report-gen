@@ -5,13 +5,18 @@ from reportlab.pdfgen import canvas
 from reportlab.graphics.charts.piecharts import Pie
 import logging
 from reportlab.lib.enums import TA_JUSTIFY
-from reportlab.lib.pagesizes import A4
+from reportlab.lib.pagesizes import A4, LETTER
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch, mm
+from reportlab.lib.units import inch, mm, cm
 from reportlab.platypus import *
 from reportlab.rl_config import defaultPageSize
 from reportlab.lib.colors import HexColor
+from reportlab.graphics.shapes import Drawing
+from reportlab.graphics.charts.barcharts import *
+from reportlab.graphics.charts.legends import Legend
+from reportlab.graphics.charts.textlabels import Label
 from datetime import date
+from math import floor, ceil
 
 from gather_info import *
 
@@ -40,7 +45,7 @@ class CommonData(canvas.Canvas):
             self.__dict__.update(state)
             self.draw_page_number(num_pages)
             self.add_logo()
-            self.drawString(5, HEIGHT-20, "VSS - Security Overview Report")
+            self.drawString(5, HEIGHT-70, "VSS - Security Overview Report")
             canvas.Canvas.showPage(self)
         canvas.Canvas.save(self)
 
@@ -57,9 +62,9 @@ class CommonData(canvas.Canvas):
 # Try to use a ".jpeg" image
 def on_first_page(canvas, doc):
     canvas.saveState()
-    canvas.drawImage("images/vss.jpeg", 20*mm, HEIGHT-150,width=6.5*inch, height=1.06*inch)
+    canvas.drawImage("images/vss.jpeg", 20*mm, HEIGHT-200,width=6.5*inch, height=1.06*inch)
     canvas.setFont('Times-Bold', 20)
-    canvas.drawCentredString(WIDTH/2.0, HEIGHT - 350, "Organizational Security Overview Report")
+    canvas.drawCentredString(WIDTH/2.0, HEIGHT - 350, "Security Overview Report")
     canvas.setFont('Times-Roman', 14)
     company = get_org_name()
     canvas.drawCentredString(WIDTH/2.0, HEIGHT/2.0-(100), "For: " + company)
@@ -109,25 +114,140 @@ def add_scope_section(document):
     '''
     info = add_para(text, document)
     fields.append(info)
+
+
+def add_findings_by_provider_chart(document):
+    drawing = Drawing(300, 200)
+    data = get_findings_by_provider()
+    if(data[0][0] > data[0][1]):
+        maxVal = data[0][0]
+    else:
+        maxVal = data[0][1]
     
+    bar = HorizontalBarChart()
+    bar.x = 30
+    bar.y = 0
+    bar.height = 150
+    bar.width = 400
+    bar.data = data
+    bar.strokeColor = colors.white
+    bar.valueAxis.valueMin = 0
+    bar.valueAxis.valueMax = maxVal*2   ## graph displa twice as much as max violation
+    bar.valueAxis.valueStep = int(ceil(maxVal/400))*100  ## Convert to neartest 100
+    bar.categoryAxis.labels.boxAnchor = 'ne'
+    bar.categoryAxis.labels.dx = -10
+    bar.categoryAxis.labels.dy = -2
+    bar.categoryAxis.labels.fontName = 'Helvetica'
+    bar.categoryAxis.categoryNames = ["AWS", "Azure"]
+    bar.bars[(0,0)].fillColor = HexColor("#f5990f")
+    bar.bars[(0,1)].fillColor = HexColor("#3a32a8")
+    bar.barWidth = 10
+    bar.barSpacing = 0.1
+    bar.barLabelFormat = '%d'
+    bar.barLabels.nudge = 15
+
+    drawing.add(bar)
+  #  add_legend(drawing, bar)
+    yLabel = Label()
+    yLabel.setText("Number of Findings ---->")
+    yLabel.fontSize = 12
+    yLabel.fontName = 'Helvetica'
+    yLabel.dx = 250
+    yLabel.dy = -30
+    
+    chartLabel = Label()
+    chartLabel.setText("Findings by Provider")
+    chartLabel.fontSize = 14
+    chartLabel.fontName = 'Helvetica'
+    chartLabel.dx = 250
+    chartLabel.dy = 160
+    
+    drawing.add(chartLabel)
+    drawing.add(yLabel)
+    fields.append(drawing)
+
+
+def add_cloud_security_overview_section(document):
+    fields.append(Paragraph("3. Cloud Security Overview", style=styles["Heading3"]))
+    fields.append(add_para("<br/><br/>", document))
+    data = [("Cloud Accounts", 472), ("Open Findings", 1212), ("Resolved Findings", 342), ("Rules Configured", 250),
+            ("High Severity Findings", 100), ("Compliance Frameworks", 9)]
+    b = Table(data, 150, 30)
+    b.hAlign = "CENTER"
+    b.vAlign = "MIDDLE"
+    b.setStyle(TableStyle([   
+                       ('BACKGROUND', (-1,0), (-1, -1), HexColor("#3498eb")),
+                       ('GRID',(0,0),(-1,-1),0.01*inch,(0,0,0,)),
+                       ('FONT', (0,0), (-1,-1), 'Helvetica')]))
+    fields.append(b)
+    add_findings_by_provider_chart(doc)
+
+
+def add_cloud_account_risk_overview_section(document):
+    fields.append(Paragraph("4. Risk Overview", style=styles["Heading3"]))
+    fields.append(Paragraph("4.1 Cloud Account Risk Overview", style=styles["Heading4"]))
+    open_resolve = get_open_resolved_findings()
+    account_info = get_account_info()
+    text = ''' There are ''' + str(open_resolve["open"]) + ''' open findings and ''' + str(open_resolve["resolved"]) + ''' resolved findings across ''' + str(account_info["accounts"]) + ''' accounts.
+    '''
+    fields.append(add_para(text, document))
+    add_findings_by_account_chart(document)
+
+def add_findings_by_account_chart(document):
+    drawing = Drawing(500, 500)
+    findings, accounts = get_top_10_accounts_by_findings()
+    
+    bar = HorizontalBarChart()
+    bar.x = 25
+    bar.y = -10
+    bar.height = 500
+    bar.width = 450
+    bar.data = findings
+    bar.strokeColor = colors.white
+    bar.valueAxis.valueMin = 0
+    bar.valueAxis.valueMax = 1000*1.5   ## graph displa twice as much as max violation
+    bar.valueAxis.valueStep = int(ceil(1000/400))*100  ## Convert to neartest 100
+    bar.categoryAxis.labels.boxAnchor = 'ne'
+    bar.categoryAxis.labels.dx = -10
+    bar.categoryAxis.labels.dy = -2
+    bar.categoryAxis.labels.fontName = 'Helvetica'
+    bar.categoryAxis.categoryNames = accounts
+    bar.bars[0].fillColor = HexColor("#3a32a8")
+    bar.bars[1].fillColor = colors.gray
+    bar.barWidth = 5
+    bar.barSpacing = 0.5
+    bar.barLabelFormat = '%d'
+    bar.barLabels.nudge = 15
+    
+    drawing.add(bar)
+    fields.append(drawing)
+    newPage()
+    
+
+def newPage():
+    fields.append(PageBreak())
 
 # Creates the initial report document
 def init_report():
-    doc = SimpleDocTemplate("vss_compliance_report.pdf", pagesize=A4)
+    doc = SimpleDocTemplate("vss_compliance_report.pdf", pagesize=LETTER)
     return doc
 
 def build_report(document):
-    logging.info("Generating Report Now...")
     document.build(fields, onFirstPage=on_first_page, canvasmaker=CommonData)
+    logging.info("Successfully generated report !!")
 
 if __name__ == '__main__':
     logging.getLogger().setLevel(logging.INFO)
     logging.info("Generating Report ...")
     doc = init_report()
-    fields.append(PageBreak())
+    newPage()
     add_executive_summary_section(doc)
     add_scope_section(doc)
-    fields.append(PageBreak())
+    newPage()
+    add_cloud_security_overview_section(doc)
+    newPage()
+    add_cloud_account_risk_overview_section(doc)
+    newPage()
     build_report(doc)
    
    
