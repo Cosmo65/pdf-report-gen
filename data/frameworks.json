@@ -1,0 +1,104 @@
+{
+    "totalCount": 9,
+    "results": [
+        {
+            "id": "07f5193c-aa8b-4441-bf3b-8470b9c88880",
+            "name": "cis-azure-foundations-benchmark",
+            "version": "1.0.0",
+            "publicationDate": "2018-02-20",
+            "author": "CIS",
+            "description": "CIS Microsoft Azure Foundations Security Benchmark",
+            "url": "https://www.cisecurity.org",
+            "creationTime": 1564521727413,
+            "lastUpdateTime": 1564521727413
+        },
+        {
+            "id": "12dcb380-f5bd-46cb-bb39-a968537e302b",
+            "name": "nist-csf",
+            "version": "1.1",
+            "publicationDate": "2018-04-16",
+            "author": "National Institute of Standards and Technology (NIST)",
+            "description": "Framework for Improving Critical Infrastructure Cybersecurity",
+            "url": "https://doi.org/10.6028/NIST.CSWP.04162018",
+            "creationTime": 1564521728313,
+            "lastUpdateTime": 1564521728313
+        },
+        {
+            "id": "37b50f9e-ee51-44a3-b87e-734b3445b5bc",
+            "name": "eu-gdpr",
+            "version": "2016-679",
+            "publicationDate": "2016-04-27",
+            "author": "European Union Parliament",
+            "description": "General Data Protection Regulation",
+            "url": "https://eur-lex.europa.eu/eli/reg/2016/679/oj",
+            "creationTime": 1564521728641,
+            "lastUpdateTime": 1564521728641
+        },
+        {
+            "id": "5f72c1c5-a819-4bcd-876c-05859188b3d4",
+            "name": "nist-sp800-171",
+            "version": "Revision 1",
+            "publicationDate": "2018-06-07",
+            "author": "National Institute of Standards and Technology (NIST)",
+            "description": "Protecting Controlled Unclassified Information in Nonfederal Systems and Organizations",
+            "url": "https://doi.org/10.6028/NIST.SP.800-171r1",
+            "creationTime": 1564521727985,
+            "lastUpdateTime": 1564521727985
+        },
+        {
+            "id": "9b7d1af8-2403-4edc-91c0-c8a987965197",
+            "name": "aicpa-soc-2",
+            "version": "2017",
+            "publicationDate": "2017-01-01",
+            "author": "American Institute of Certified Public Accountants, Inc. (AICPA)",
+            "description": "Trust Services Criteria for Service Orgtanization Control (SOC)",
+            "url": "https://www.aicpa.org/interestareas/frc/assuranceadvisoryservices/socforserviceorganizations.html",
+            "creationTime": 1564521728925,
+            "lastUpdateTime": 1564521728925
+        },
+        {
+            "id": "c4f4b416-a8b0-407e-ac5a-c02e8b289009",
+            "name": "us-hipaa-164",
+            "version": "2017-10-01",
+            "publicationDate": "2017-10-01",
+            "author": "US Government Code of Federal Regulations (CFR)",
+            "description": "Title 45 Subtitle A Subchapter C Part 164 -- Security and Privacy",
+            "url": "https://www.govinfo.gov/content/pkg/CFR-2017-title45-vol1/xml/CFR-2017-title45-vol1-part164.xml",
+            "creationTime": 1564521729213,
+            "lastUpdateTime": 1564521729213
+        },
+        {
+            "id": "e5f41fe6-da1b-4a8b-8b27-369e6ddf82ea",
+            "name": "cis-aws-foundations-benchmark",
+            "version": "1.2.0",
+            "publicationDate": "2018-05-23",
+            "author": "CIS",
+            "description": "CIS Amazon Web Services Foundations Benchmark",
+            "url": "https://www.cisecurity.org",
+            "creationTime": 1564521727125,
+            "lastUpdateTime": 1564521727125
+        },
+        {
+            "id": "f5a6ee1a-ea74-43a3-a506-b9f7a63c1bd1",
+            "name": "nist-sp800-53",
+            "version": "Revision 4",
+            "publicationDate": "2015-01-22",
+            "author": "National Institute of Standards and Technology (NIST)",
+            "description": "Security and Privacy Controls for Federal Information Systems and Organizations",
+            "url": "http://dx.doi.org/10.6028/NIST.SP.800-53r4",
+            "creationTime": 1564521727701,
+            "lastUpdateTime": 1564521727701
+        },
+        {
+            "id": "fa66f3a4-c1a0-427e-8324-e8b9230f17f7",
+            "name": "pci-dss",
+            "version": "3.2.1",
+            "publicationDate": "2018-05-01",
+            "author": "Payment Card Industry (PCI) Security Standards Council",
+            "description": "Data Security Standard - Requireents and Security Assessment Procedures",
+            "url": "https://www.pcisecuritystandards.org/documents/PCI_DSS_v3-2-1.pdf",
+            "creationTime": 1564521729501,
+            "lastUpdateTime": 1564521729501
+        }
+    ]
+}
