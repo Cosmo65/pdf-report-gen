@@ -18,6 +18,8 @@ from reportlab.graphics.charts.legends import Legend
 from reportlab.graphics.charts.textlabels import Label
 from datetime import date
 from math import floor, ceil
+import textwrap
+from xml.sax.saxutils import escape
 
 from gather_info import *
 
@@ -29,6 +31,7 @@ logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
 fields = []
 styles = getSampleStyleSheet()
 ParaStyle = styles["Normal"]
+styleN = styles["BodyText"]
 WIDTH = defaultPageSize[0]
 HEIGHT = defaultPageSize[1]
 
@@ -113,7 +116,7 @@ def add_risk_score_vs_object_count_chart():
     risk_scores = [(100, 35, 40, 70, 100, 55, 43, 22, 21, 81, 5)]
     bar = VerticalBarChart()
     bar.x = 0
-    bar.y = 0
+    bar.y = -45
     bar.height = doc.height/2
     bar.width = doc.width
     bar.barWidth = 4
@@ -136,20 +139,28 @@ def add_risk_score_vs_object_count_chart():
     
 
 def add_top_10_objects_by_risk():
-    fields.append(add_para("<br></br><br></br>"))
-    fields.append(add_para("<br></br><br></br>"))
-    data = [["Risk Score", "Finding Count", "Object Type", "Object ID", "Provider", "Cloud Account"], [980, 5, "EC2", "ec2-036eqhbda767adg", "AWS", 73762781],
-            [980, 5, "EC2", "ec2-036eqhbda767adg", "AWS", 73762781], [980, 5, "EC2", "ec2-036eqhbda767adg", "AWS", 73762781],
-            [980, 5, "EC2", "ec2-036eqhbda767adg", "AWS", 73762781],[980, 5, "EC2", "ec2-036eqhbda767adg", "AWS", 73762781],
-            [980, 5, "EC2", "ec2-036eqhbda767adg", "AWS", 73762781],[980, 5, "EC2", "ec2-036eqhbda767adg", "AWS", 73762781],
-            [980, 5, "EC2", "ec2-036eqhbda767adg", "AWS", 73762781],[980, 5, "EC2", "ec2-036eqhbda767adg", "AWS", 73762781],
-            [980, 5, "EC2", "ec2-036eqhbda767adg", "AWS", 73762781]]
-    rs_table = Table(data, [80,80,80,120,60,80], 30, repeatRows=1)
+    # fields.append(add_para("<br></br><br></br>"))
+    # fields.append(add_para("<br></br><br></br>"))
+    columns = ["Risk\nScore", "Finding\nCount", "Object Name", "Object ID", "Provider", "Cloud Account"]
+    
+    data = get_top_10_objects_by_risk()
+    
+    # Use escape to add escape characters 
+    for d in data:
+        d[2] = Paragraph(escape(d[2]), style = styles["BodyText"])
+        d[3] = Paragraph(escape(d[3]), style = styles["BodyText"])
+        d[5] = Paragraph(escape(d[5]), style = styles["BodyText"])
+
+    data.insert(0, columns)
+    rs_table = Table(data, [60,45,90,170,60,80], 80, repeatRows=1)
     rs_table.hAlign = "CENTER"
     rs_table.vAlign = "MIDDLE"
     rs_table.setStyle(TableStyle([   
                        ('BACKGROUND', (0,0), (-1, 0), HexColor("#3498eb")),
                        ('GRID',(0,0),(-1,-1),0.01*inch,(0,0,0,)),
+                       ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+                       ('VALIGN', (0,0), (-1,0), 'MIDDLE'),
+                       ('VALIGN', (0,1), (-1,-1), 'TOP'),
                        ('FONT', (0,0), (-1,-1), 'Helvetica')]))
     fields.append(rs_table)
     
@@ -160,9 +171,10 @@ def add_asset_risk_overview():
     fields.append(add_para("List of objects with the highest risk score. Shows the objects with the highest risk."))
     fields.append(add_para("There are 1872 assets out of 15072 assets that have violations across 92 accounts."))
     add_risk_score_vs_object_count_chart()
+    fields.append(newPage())
     add_top_10_objects_by_risk()
     
-# Adds Exectuive summary section
+# Adds Executive summary section
 def add_executive_summary_section():
     
     fields.append(Paragraph("Executive Summary", style=styles["Heading1"]))
@@ -259,34 +271,46 @@ def add_cloud_security_overview_section():
     add_findings_by_provider_chart()
 
 def add_top_10_rules():
-    data = [["Rule", "Provider", "Object Type", "Cloud Account", "Severity", "Count"], [10,"AWS", "EC2", "12345", "High", 10], [10,"AWS", "EC2", "12345", "High", 10],
-            [10,"Azure", "VM", "12345", "High", 10], [10,"Azure", "VM", "12345998", "Medium", 5], [10,"AWS", "EC2", "12345", "High", 10], [10,"AWS", "EC2", "12345", "High", 10],
-            [56,"AWS", "EC2", "65417gaqgq", "Low", 10], [10,"AWS", "EC2", "12345", "Medium", 10], [10,"AWS", "EC2", "12345", "High", 10]]
-    tb = Table(data, [80,80,80,80,80,80], 30, repeatRows=1)
+    data = get_top_10_rules()
+    columns = ["Rule", "Provider", "Object Type", "Severity", "Count"]
+    for d in data:
+        d[0] = Paragraph(d[0], style = styles["BodyText"])   
+    data.insert(0, columns)
+    tb = Table(data, [170,60,80,80,60], 30, repeatRows=1)
     tb.hAlign = "CENTER"
     tb.vAlign = "MIDDLE"
     tb.setStyle(TableStyle([   
                        ('BACKGROUND', (0,0), (-1, 0), HexColor("#3498eb")),
+                       ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+                       ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
                        ('GRID',(0,0),(-1,-1),0.01*inch,(0,0,0,)),
                        ('FONT', (0,0), (-1,-1), 'Helvetica')]))
-    #fields.append(FrameBreak())
     fields.append(tb)
 
 def add_top_10_accounts_by_open_findings():
 
-    sectionTable = Table([["Provider", "Cloud Account", "Open Findings", "Suppressed Findings"]], [80,120,120,120], 30)
+    sectionTable = Table([["Provider", "Cloud Account", "Open Findings", "Suppressed\nFindings"]], [70,170,120,80], 35)
     sectionTable.setStyle(TableStyle([   
                        ('BACKGROUND', (0,0), (-1, -1), HexColor("#3498eb")),
                        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
                        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-                       ('BOX',(0,0),(-1,-1),0.01*inch,colors.white),
+                       #('BOX',(0,0),(-1,-1),0.01*inch,colors.white),
                        ('FONTSIZE', (0,0), (-1,-1), 12),
-                       ('TOPPADDING', (0,0),(-1,-1), 0),
+                       ('TOPPADDING', (0,0),(-1,-1), -5),
                        ('BOTTOMPADDING', (0,0),(-1,-1), 0),
                        ('GRID',(0,0),(-1,-1),0.01*inch,(0,0,0,)),
                        ('FONT', (0,0), (-1,-1), 'Helvetica')]))
-    accountsTable = Table([["", "", "High", "Medium", "Low", ""], ["AWS", "123456", "5", "25", "10", "10"], ["AWS", "123456", "5", "25", "10", "10"], ["AWS", "123456", "5", "25", "10", "10"], ["Azure", "kjbajbdc7867482", "5", "25", "10", "10"]], [80,120,40,45,35,120], 30)
     
+    data = get_high_med_low_top_10_violations()
+    columns = ["", "", "High", "Medium", "Low", ""]
+    for d in data:
+        # Added to support word wrap for account IDs
+        # In case of Azure, the subscription ID is long
+        d[1] = Paragraph(d[1], style = styles["BodyText"])
+    
+    data.insert(0, columns)
+    accountsTable = Table(data, [70,170,40,45,35,80], 35)
+
     accountsTable.setStyle(TableStyle([   
                        #('BACKGROUND', (-1,0), (-1, 0), HexColor("#3498eb")),
                        ('GRID',(0,0),(-1,-1),0.01*inch,colors.black),
@@ -312,43 +336,55 @@ def add_top_10_accounts_by_open_findings():
 
     fields.append(finalTable)
 
-def add_azure_top_10_rules_chart():
+def add_azure_findings_by_severity_chart():
     drawing = Drawing(doc.width/2-18, doc.height/2-45)
-    rules = [(10, 35, 30)]
+    aws, azure  = get_all_violations_by_severity()
+    rules = [azure]
     bar = VerticalBarChart()
     bar.x = 10
-    bar.y = 60
+    bar.y = 70
     bar.height = doc.height/4
     bar.width = doc.width/2 - 40
     bar.barWidth = 2
     bar.barSpacing = 0.5
     bar.data = rules
     bar.valueAxis.valueMin = 0
-    bar.valueAxis.valueMax = max(rules[0]) * 1.5 ## graph displa twice as much as max violation
-    bar.valueAxis.valueStep = int(ceil(max(rules[0])/40))*10 ## Convert to neartest 10
+    bar.valueAxis.valueMax = int(max(rules[0]) * 1.5) ## graph displa twice as much as max violation
+    bar.valueAxis.valueStep = int(ceil(max(rules[0])/400))*100 ## Convert to neartest 10
     bar.categoryAxis.categoryNames = ["high", "medium", "low"]
     bar.barLabelFormat = '%d'
     bar.barLabels.nudge = 15
     bar.bars[0].fillColor = colors.blue
     bar.categoryAxis.labels.boxAnchor = 'n'
+    
+    chartLabel = Label()
+    chartLabel.setText("Findings by Severity - Azure")
+    chartLabel.fontSize = 10
+    chartLabel.fontName = 'Helvetica'
+    chartLabel.dx = doc.rightMargin
+    chartLabel.dy = doc.height-80
+    
+    
+    drawing.add(chartLabel)
     drawing.add(bar)
     fields.append(drawing) 
     
 
-def add_aws_top_10_rules_chart():
+def add_aws_findings_by_severity_chart():
     drawing = Drawing(doc.width/2-18, doc.height/2-45)
-    rules = [(100, 35, 40)]
+    aws, azure  = get_all_violations_by_severity()
+    rules = [aws]
     bar = VerticalBarChart()
     bar.x = 10
-    bar.y = 60
+    bar.y = 70
     bar.height = doc.height/4
     bar.width = doc.width/2 - 40
     bar.barWidth = 2
     bar.barSpacing = 0.5
     bar.data = rules
     bar.valueAxis.valueMin = 0
-    bar.valueAxis.valueMax = max(rules[0]) * 1.5 ## graph displa twice as much as max violation
-    bar.valueAxis.valueStep = int(ceil(max(rules[0])/40))*10 ## Convert to neartest 10
+    bar.valueAxis.valueMax = int(max(rules[0])*1.5) ## graph displa twice as much as max violation
+    bar.valueAxis.valueStep = int(ceil(max(rules[0])/400))*100 ## Convert to neartest 10
     bar.categoryAxis.categoryNames = ["high", "medium", "low"]
     bar.barLabelFormat = '%d'
     bar.barLabels.nudge = 15
@@ -359,25 +395,33 @@ def add_aws_top_10_rules_chart():
 
 def add_rule_violations_by_provider_chart(doc):
 
-
-    frame1 = Frame(doc.leftMargin, doc.height, doc.width, 80, id='row1', showBoundary=0)
-    frame2 = Frame(doc.leftMargin, doc.topMargin+270, doc.width/2-6, doc.height/2-30, id='col1', showBoundary=0)
-    frame3 = Frame(doc.leftMargin+doc.width/2+6, doc.rightMargin+270, doc.width/2-6,
-               doc.height/2-30, id='col2', showBoundary=0)
+    frame1 = Frame(doc.leftMargin, doc.height, doc.width, 70, id='row 1', showBoundary=0)
+    frame2 = Frame(doc.leftMargin, doc.height-80, doc.width/2-40, 50, id='aws chart', showBoundary=1)
+    frame3 = Frame(doc.leftMargin+doc.width/2+6, doc.height-80, doc.width/2-40, 50, id='azure chart', showBoundary=1)
+    frame4 = Frame(doc.leftMargin, doc.topMargin+270, doc.width/2-6, doc.height/2-30, id='col1', showBoundary=1)
+    frame5 = Frame(doc.leftMargin+doc.width/2+6, doc.rightMargin+270, doc.width/2-6, doc.height/2-30, id='col2', showBoundary=1)
+    frame6 = Frame(doc.leftMargin, doc.height/2-260, 480, 300, id='table', showBoundary=0)
     
-    
-    fields.append(NextPageTemplate('TwoCol'))
+    fields.append(NextPageTemplate('RuleRiskOverview'))
     fields.append(FrameBreak())
     fields.append(Paragraph("4.2 Rule Risk Overview", style=styles["Heading4"]))
     fields.append(add_para("A prioritized list of rule violations by cloud account. Shows the rule violations with the highest risk."))
-    fields.append(add_para("There are 90872 open findings across 253 rules with 193 AWS and 60 Azure rules."))
+    text = "There are " + str(get_open_resolved_findings()["open"]) + " open findings after evaluating "+ str(get_account_info()["rules"]) + " rules across AWS and Azure."
+    fields.append(add_para(text))
     fields.append(FrameBreak())
     aws_logo = Image("images/aws-logo.jpg", width=30, height=30, hAlign='RIGHT')
-    fields.append(KeepInFrame(doc.width/2-6, doc.height/2-30,add_aws_top_10_rules_chart(), mode='shrink'))
+    fields.append(KeepTogether(aws_logo))
     fields.append(FrameBreak())
-    fields.append(KeepInFrame(doc.width/2-6, doc.height/2, add_azure_top_10_rules_chart(), mode='shrink'))
-    #fields.append(FrameBreak())
-    return frame1, frame2, frame3
+    azure_logo = Image("images/azure-logo.jpg", width=30, height=30, hAlign='RIGHT')
+    fields.append(KeepTogether(azure_logo))
+    fields.append(FrameBreak())
+    fields.append(KeepInFrame(doc.width/2-6, doc.height/2-30,add_aws_findings_by_severity_chart(), mode='shrink'))
+    fields.append(FrameBreak())
+    fields.append(KeepInFrame(doc.width/2-6, doc.height/2, add_azure_findings_by_severity_chart(), mode='shrink'))
+    fields.append(FrameBreak())
+    fields.append(KeepInFrame(doc.width/2-6, doc.height/2, add_top_10_rules(), mode='shrink'))
+    fields.append(FrameBreak())
+    return frame1, frame2, frame3, frame4, frame5, frame6
 
 def add_cloud_account_risk_overview_section():
     fields.append(Paragraph("4. Risk Overview", style=styles["Heading3"]))
@@ -394,6 +438,17 @@ def add_cloud_account_risk_overview_section():
 def add_findings_by_account_chart():
     drawing = Drawing(500, 500)
     findings, accounts = get_top_10_accounts_by_findings()
+    length_accounts = len(accounts)
+    for account in accounts:
+        if(length_accounts > 0):
+            idx = accounts.index(account)
+            long_account_string = account
+            if(len(long_account_string)>15):
+                accounts.remove(account)
+                account = textwrap.fill(account, 15)
+                accounts.insert(idx,account)
+            length_accounts = length_accounts - 1
+
     open_maxVal = max(findings[0])
     resolve_maxVal = max(findings[1])
     maxVal = max(open_maxVal, resolve_maxVal)   ## Find maximum number of findings open or resolved and use it as basis for plotting the graph
@@ -414,7 +469,7 @@ def add_findings_by_account_chart():
     bar.categoryAxis.labels.fontName = 'Helvetica'
     bar.categoryAxis.categoryNames = accounts
     bar.bars[0].fillColor = HexColor("#3a32a8")
-    bar.bars[1].fillColor = colors.gray
+    bar.bars[1].fillColor = colors.aqua
     bar.barWidth = 5
     bar.barSpacing = 0.5
     bar.barLabelFormat = '%d'
@@ -452,12 +507,11 @@ if __name__ == '__main__':
     add_cloud_account_risk_overview_section()
 
     
-    frame1, frame2, frame3 = add_rule_violations_by_provider_chart(doc)
+    frame1, frame2, frame3, frame4, frame5, frame6 = add_rule_violations_by_provider_chart(doc)
     doc.addPageTemplates([PageTemplate(id='OneCol', frames=[frameFirstPage], onPage=on_first_page),
-                      PageTemplate(id='TwoCol',frames=[frame1, frame2, frame3]),
-                      ])
+                      PageTemplate(id='RuleRiskOverview',frames=[frame1, frame2, frame3, frame4, frame5, frame6])])
     
-    add_top_10_rules()
+    #add_top_10_rules()
     add_asset_risk_overview()
     frame_aws_cis, frame_azure_cis = add_compliance_risk_overview()
     doc.addPageTemplates([PageTemplate(id='TwoDonuts',frames=[frame_aws_cis, frame_azure_cis])])
