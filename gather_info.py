@@ -93,8 +93,7 @@ def vss_account_info():
     payload = {
                 "aggregations": {
                             "find": {
-                                "fieldName":
-                                "CloudProvider",
+                                "fieldName":"CloudProvider",
                                 "aggregationType": "Terms"
                                 },
                             "accounts": {
@@ -835,6 +834,10 @@ def get_top_10_rules():
             if(item["id"]==rule):
                 name = item["name"]
                 provider = item["provider"]
+                if(provider == "aws"):
+                    provider = "AWS"
+                elif(provider == "azure"):
+                    provider = "Azure"
                 object_type = item["service"]
                 severity = item["level"]
                 count = top_10_rules[rule]["count"]
@@ -906,23 +909,23 @@ def get_top_10_objects_by_risk():
 
 def gather_data():
     logging.info("Gathering Account Info\n")
-    vss_account_info()
-    logging.info("Gathering All Rules Info\n")
-    vss_all_rules()
-    logging.info("Gathering Frameworks Info\n")
-    vss_frameworks()
-    logging.info("Gathering Open and Resolved Findings\n")
-    vss_open_resolved_findings()
-    logging.info("Gathering Findings by severity\n")
-    vss_high_med_low_top_10_findings()
-    logging.info("Gathering Suppressed Findings\n")
-    vss_suppressed_findings()
-    logging.info("Gathering Findings by severity\n")
-    vss_all_violations_by_severity()
-    logging.info("Gathering Top 10 Rules\n")
-    vss_top_10_rules()
-    logging.info("Gathering Top 10 Objects by Risk\n")
-    vss_top_10_objects_by_risk()
+    # vss_account_info()
+    # logging.info("Gathering All Rules Info\n")
+    # vss_all_rules()
+    # logging.info("Gathering Frameworks Info\n")
+    # vss_frameworks()
+    # logging.info("Gathering Open and Resolved Findings\n")
+    # vss_open_resolved_findings()
+    # logging.info("Gathering Findings by severity\n")
+    # vss_high_med_low_top_10_findings()
+    # logging.info("Gathering Suppressed Findings\n")
+    # vss_suppressed_findings()
+    # logging.info("Gathering Findings by severity\n")
+    # vss_all_violations_by_severity()
+    # logging.info("Gathering Top 10 Rules\n")
+    # vss_top_10_rules()
+    # logging.info("Gathering Top 10 Objects by Risk\n")
+    # vss_top_10_objects_by_risk()
     
 
     

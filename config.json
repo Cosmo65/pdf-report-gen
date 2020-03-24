@@ -1,12 +1,7 @@
 {
-    "provider": ["AWS", "Azure"],
-    "cloud_accounts": 470,
-    "region":"",
-    "compliance_frameworks": ["nist", "cis"],
-    "severity": ["High", "Medium"],
-    "risk_score":"",
-    "cloud_tag": "All",
-    "environment": "All"
+    "config":{
+        "provider": ["AWS", "Azure"],
+        "severity": ["High", "Medium", "Low"]
+    }
 }
 
-//Environment *
