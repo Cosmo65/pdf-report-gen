@@ -4,6 +4,8 @@ import os
 import json
 import sys
 from operator import itemgetter
+from iso8601utils import parsers
+import calendar
 
 access_token = ''
 
@@ -104,6 +106,15 @@ def vss_account_info():
                             }
                }    
         
+    if(get_config()["config"]["cloudAccountIds"][0].lower() != "all"):
+            filter_dict = {"filters":{
+                            "cloudAccountIds":get_config()["config"]["cloudAccountIds"]
+            }}
+            payload.update(filter_dict)
+    
+    
+    logging.info(payload)
+    
     headers = {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer {}'.format(access_token)
@@ -191,6 +202,9 @@ def vss_open_resolved_findings():
                     "status":"Resolved"
                     }
             }
+    
+    if(get_config()["config"]["cloudAccountIds"][0].lower() != "all"):
+        payload["filters"]["cloudAccountIds"] = get_config()["config"]["cloudAccountIds"]
     
     headers = {
         'Content-Type': 'application/json',
@@ -395,6 +409,9 @@ def vss_suppressed_findings():
 
         }
 
+    if(get_config()["config"]["cloudAccountIds"][0].lower() != "all"):
+        payload["filters"]["cloudAccountIds"] = get_config()["config"]["cloudAccountIds"]
+
     headers = {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer {}'.format(access_token)
@@ -429,6 +446,9 @@ def vss_all_violations_by_severity():
             }
         }
     
+    if(get_config()["config"]["cloudAccountIds"][0].lower() != "all"):
+        payload["filters"]["cloudAccountIds"] = get_config()["config"]["cloudAccountIds"]
+    
     headers = {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer {}'.format(access_token)
@@ -460,6 +480,9 @@ def vss_all_violations_by_severity():
                 }
         }
     
+    if(get_config()["config"]["cloudAccountIds"][0].lower() != "all"):
+        payload["filters"]["cloudAccountIds"] = get_config()["config"]["cloudAccountIds"]
+    
     response = requests.post(url, data=json.dumps(payload), headers=headers)
     
     try:
@@ -485,6 +508,9 @@ def vss_all_violations_by_severity():
                 "status":"Open"
                 }
             }
+    
+    if(get_config()["config"]["cloudAccountIds"][0].lower() != "all"):
+        payload["filters"]["cloudAccountIds"] = get_config()["config"]["cloudAccountIds"]
     
     response = requests.post(url, data=json.dumps(payload), headers=headers)
     
@@ -561,6 +587,38 @@ def vss_top_10_objects_by_risk():
         json.dump(response.json(), output_file, indent=4)
     output_file.close()
     
+def vss_trends():
+    url = "https://api.securestate.vmware.com/v2/findings/trends-query"
+    payload = {
+            "filters":{
+                "status":"Open"
+            },
+            "Interval":"month",
+            "TopNThreshold":3
+        }
+
+    if(get_config()["config"]["cloudAccountIds"][0].lower() != "all"):
+        payload["filters"]["cloudAccountIds"] = get_config()["config"]["cloudAccountIds"]
+    
+    headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer {}'.format(access_token)
+    }
+
+    response = requests.post(url, data=json.dumps(payload), headers=headers)
+    
+    try:
+        if(response.status_code !=200):
+            raise ErrorStatusCode(str(response.status_code))
+    except ErrorStatusCode:
+            logging.error("Cannot generate report " + str(response.content) + "\n")
+            sys.exit()
+    
+    with open("data/trends.json", "w") as output_file:
+        json.dump(response.json(), output_file, indent=4)
+    output_file.close()
+    
+
 
 def get_org_name():
     return "Company Inc."
@@ -579,6 +637,10 @@ def get_account_info():
         frameworks = json.load(frameworks_info)
     frameworks_info.close()
     
+    with open("data/suppressed_findings.json", "r") as suppressed_info:
+        suppressed_findings = json.load(suppressed_info)
+    suppressed_info.close()
+    
 
     dict_accounts = accounts["aggregations"]["accounts"]["buckets"]
     total_accounts = len(dict_accounts.keys())
@@ -587,7 +649,8 @@ def get_account_info():
         "accounts": total_accounts,
         "rules": rules["totalCount"],
         "compliance_frameworks": frameworks["totalCount"],
-        "total_violations": accounts["totalCount"]
+        "total_violations": accounts["totalCount"],
+        "suppressed_findings": suppressed_findings["totalCount"]
     }
     
     return account_info
@@ -610,16 +673,13 @@ def get_open_resolved_findings():
     
 
 def get_config():
-    config = {
-        "provider": ["AWS", "Azure"],
-        "cloud_accounts": 470,
-        "compliance_frameworks": 9,
-        "severity": ["High", "Medium"],
-        "cloud_tag": "All",
-        "environment": "All"
-    }
+    
+    with open("config.json") as config_file:
+        configuration = json.load(config_file)
+    config_file.close()
+    
+    return configuration
 
-    return config
 
 def get_findings_by_provider():
     
@@ -628,8 +688,18 @@ def get_findings_by_provider():
     account_info.close()
     
     provider = []
-    provider.append(accounts["aggregations"]["find"]["buckets"]["aws"]["count"])
-    provider.append(accounts["aggregations"]["find"]["buckets"]["azure"]["count"])
+    if("aws" in accounts["aggregations"]["find"]["buckets"]):
+        if("count" in accounts["aggregations"]["find"]["buckets"]["aws"]):
+            provider.append(accounts["aggregations"]["find"]["buckets"]["aws"]["count"])
+        else:
+            provider.append(0)
+    
+    if("azure" in accounts["aggregations"]["find"]["buckets"]):
+        if("count" in accounts["aggregations"]["find"]["buckets"]["azure"]):
+            provider.append(accounts["aggregations"]["find"]["buckets"]["azure"]["count"])
+        else:
+            provider.append(0)
+        
     result = []
     result.append(provider)
     return result
@@ -663,13 +733,8 @@ def get_top_10_accounts_by_findings():
             open_findings.append(sorted_open_accounts[open_account]["count"])
         ## @TODO - Change account ID logic with inventory service API    
         account_ids.append(open_account)
-
-    result = [
-        open_findings,
-        resolved_findings
-    ]
     
-    return result, account_ids
+    return [open_findings],[resolved_findings], account_ids
 
 
 def get_high_med_low_top_10_violations():
@@ -795,19 +860,35 @@ def get_all_violations_by_severity():
     
     
     if("aws" in high["aggregations"]["cloud"]["buckets"]):
-        aws_high = high["aggregations"]["cloud"]["buckets"]["aws"]["count"]
+        if("count" in high["aggregations"]["cloud"]["buckets"]["aws"]):
+            aws_high = high["aggregations"]["cloud"]["buckets"]["aws"]["count"]
+        else:
+            aws_high = 0
     if("azure" in high["aggregations"]["cloud"]["buckets"]):
-        azure_high = high["aggregations"]["cloud"]["buckets"]["azure"]["count"]
-    
+        if("count" in high["aggregations"]["cloud"]["buckets"]["azure"]):   
+            azure_high = high["aggregations"]["cloud"]["buckets"]["azure"]["count"]
+        else:
+            azure_high = 0
     if("aws" in medium["aggregations"]["cloud"]["buckets"]):
-        aws_med = medium["aggregations"]["cloud"]["buckets"]["aws"]["count"]
+        if("count" in high["aggregations"]["cloud"]["buckets"]["aws"]):
+            aws_med = medium["aggregations"]["cloud"]["buckets"]["aws"]["count"]
+        else:
+            aws_med = 0
     if("azure" in medium["aggregations"]["cloud"]["buckets"]):
-        azure_med = medium["aggregations"]["cloud"]["buckets"]["azure"]["count"]
-        
+        if("count" in high["aggregations"]["cloud"]["buckets"]["azure"]):
+            azure_med = medium["aggregations"]["cloud"]["buckets"]["azure"]["count"]
+        else:
+            azure_med = 0
     if("aws" in low["aggregations"]["cloud"]["buckets"]):
-        aws_low = low["aggregations"]["cloud"]["buckets"]["aws"]["count"]
+        if("count" in high["aggregations"]["cloud"]["buckets"]["aws"]):
+            aws_low = low["aggregations"]["cloud"]["buckets"]["aws"]["count"]
+        else:
+            aws_low = 0
     if("azure" in low["aggregations"]["cloud"]["buckets"]):
-        azure_low = low["aggregations"]["cloud"]["buckets"]["azure"]["count"]
+        if("count" in high["aggregations"]["cloud"]["buckets"]["azure"]):
+            azure_low = low["aggregations"]["cloud"]["buckets"]["azure"]["count"]
+        else:
+            azure_low = 0
     
     aws = [aws_high, aws_med, aws_low]
     azure = [azure_high, azure_med, azure_low]
@@ -832,7 +913,7 @@ def get_top_10_rules():
         for item in all_rules["results"]:
             data = []
             if(item["id"]==rule):
-                name = item["name"]
+                name = item["displayName"]
                 provider = item["provider"]
                 if(provider == "aws"):
                     provider = "AWS"
@@ -904,33 +985,77 @@ def get_top_10_objects_by_risk():
     result = sorted(result, key=itemgetter(0,1), reverse=True)
     result = result[0:9]
     return result
-      
+
+def get_open_findings_trends():
+    with open("data/trends.json", "r") as trends_file:
+        trends = json.load(trends_file)
+    trends_file.close()
     
+    open_findings = trends["results"]["Open"]["buckets"]
+    
+    result = []
+    trend_month = []
+    data = []
+    for findings in open_findings:
+        parse_date = parsers.datetime(findings).date().month 
+        trend_month.append(calendar.month_abbr[parse_date])
+        data.append(open_findings[findings]["count"])
+    
+    
+    result.append(data)
+            
+    return result, trend_month
+
+def get_new_resolved_trends():
+    with open("data/trends.json", "r") as trends_file:
+        trends = json.load(trends_file)
+    trends_file.close()
+    
+    new_findings = trends["results"]["New"]["buckets"]
+    resolved_findings = trends["results"]["Resolved"]["buckets"]
+    
+    result = []
+    trend_month = []
+    data = []
+    for findings in new_findings:
+        parse_date = parsers.datetime(findings).date().month
+        trend_month.append(calendar.month_abbr[parse_date])
+        if("count" in new_findings[findings]):
+            data.append(new_findings[findings]["count"])
+        else:
+            data.append(0)
+        
+    result.append(data)
+    data = []
+    for findings in resolved_findings:
+        if("count" in resolved_findings[findings]):
+            data.append(resolved_findings[findings]["count"])
+        else:
+            data.append(0)
+            
+    result.append(data)
+    
+    return result, trend_month
+        
 
 def gather_data():
     logging.info("Gathering Account Info\n")
-    # vss_account_info()
-    # logging.info("Gathering All Rules Info\n")
-    # vss_all_rules()
-    # logging.info("Gathering Frameworks Info\n")
-    # vss_frameworks()
-    # logging.info("Gathering Open and Resolved Findings\n")
-    # vss_open_resolved_findings()
-    # logging.info("Gathering Findings by severity\n")
-    # vss_high_med_low_top_10_findings()
-    # logging.info("Gathering Suppressed Findings\n")
-    # vss_suppressed_findings()
-    # logging.info("Gathering Findings by severity\n")
-    # vss_all_violations_by_severity()
-    # logging.info("Gathering Top 10 Rules\n")
-    # vss_top_10_rules()
-    # logging.info("Gathering Top 10 Objects by Risk\n")
-    # vss_top_10_objects_by_risk()
-    
-
-    
-# def get_total_rules():
-#     return 250
-
-# def get_total_compliance_framework():
-#     return 9
+    vss_account_info()
+    logging.info("Gathering All Rules Info\n")
+    vss_all_rules()
+    logging.info("Gathering Frameworks Info\n")
+    vss_frameworks()
+    logging.info("Gathering Open and Resolved Findings\n")
+    vss_open_resolved_findings()
+    logging.info("Gathering Findings by severity\n")
+    vss_high_med_low_top_10_findings()
+    logging.info("Gathering Suppressed Findings\n")
+    vss_suppressed_findings()
+    logging.info("Gathering Findings by severity\n")
+    vss_all_violations_by_severity()
+    logging.info("Gathering Top 10 Rules\n")
+    vss_top_10_rules()
+    logging.info("Gathering Top 10 Objects by Risk\n")
+    vss_top_10_objects_by_risk()
+    logging.info("Gathering Trends info\n")
+    vss_trends()
