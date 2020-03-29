@@ -2,7 +2,7 @@
     "config":{
         "provider": ["AWS", "Azure"],
         "severity": ["High","Medium", "low"],
-        "cloud_tag":{"Namespace":["com.vmware.cso.cm.cloudhub"], "aws:cloudformation:logical-id": ["vpc"]},
+        "cloud_tag":{"aws:cloudformation:logical-id": ["vpc"]},
         "cloudAccountIds":["all"]
     }
 }
