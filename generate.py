@@ -203,9 +203,6 @@ def add_trends_open_findings_chart():
     if(value_step < 10):
         value_step = 1
     
-    
-    logging.info(data)
-    
     lc = HorizontalLineChart()
     lc.x = 25
     lc.y = 40
@@ -336,17 +333,21 @@ def add_executive_summary_section():
 
 def add_scope_section():
     fields.append(Paragraph("2. Scope", style=styles["Heading3"]))
-    config = get_config()
+    config = get_config()["config"]
     
     text = '''
     The scope of this report is within the context of the following filters:<br/>
-    Provider: 		AWS, Azure<br/>
-    Cloud Accounts: All 	(472 accounts)<br/>
-    Frameworks: 	All 	(9 frameworks)<br/>
-    Severity: 		High<br/>
-    Cloud Tag: 		All<br/>
+    Provider: ''' + str(config["providers"]) + '''<br/>
+    Cloud Accounts: ''' + str(config["cloudAccountIds"]) + '''<br/>
+    Frameworks: ''' + str(get_account_info()["compliance_frameworks"]) + '''<br/>
+    Severity: ''' + str(config["severity"])+ '''<br/>
+    Cloud Tags: ''' + str(config["cloudTags"]) + '''<br/>
     Environment:	All<br/>
     '''
+    # text = '''
+    #  The scope of this report is within the context of the following filters:<br/>
+    # ''' + str(config)
+        
     info = add_para(text)
     fields.append(info)
 
@@ -368,7 +369,6 @@ def add_findings_by_provider_chart():
     if(value_step < 10):
         value_step = 10
     
-    logging.info("here in pc" + str(maxVal))
     bar = HorizontalBarChart()
     bar.x = 30
     bar.y = 0
@@ -395,7 +395,7 @@ def add_findings_by_provider_chart():
     drawing.add(bar)
   #  add_legend(drawing, bar)
     yLabel = Label()
-    yLabel.setText("Number of Findings ---->")
+    yLabel.setText("Number of Findings")
     yLabel.fontSize = 12
     yLabel.fontName = 'Helvetica'
     yLabel.dx = 250
@@ -540,6 +540,8 @@ def add_top_10_rules():
     tb.setStyle(TableStyle([('BACKGROUND', (0, 0), (-1, 0), HexColor("#3a7c91"))]))
     tb.setStyle(TableStyle([('TEXTCOLOR', (0, 0), (-1, 0), colors.white)]))
     fields.append(tb)
+    if(len(data) < 6):
+        fields.append(FrameBreak())
 
 def add_top_10_accounts_by_open_findings():
     result = add_para("Table: Top 10 Accounts by Open Findings")
@@ -731,7 +733,7 @@ def add_findings_by_account_chart():
     drawing = Drawing(500, 500)
     open_findings, _ , accounts = get_top_10_accounts_by_findings()
     length_accounts = len(accounts)
-    logging.info(open_findings)
+
     for account in accounts:
         if(length_accounts > 0):
             idx = accounts.index(account)

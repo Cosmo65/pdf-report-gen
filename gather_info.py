@@ -9,7 +9,12 @@ import calendar
 
 access_token = ''
 
-refresh_token = os.environ['REFRESH_TOKEN']
+if "REFRESH_TOKEN" in os.environ:
+    refresh_token = os.environ['REFRESH_TOKEN']
+else:
+    logging.error("REFRESH_TOKEN was not set in environment variable.\nToken can be obtained from CSP\n")
+    sys.exit()
+    
 
 class ErrorStatusCode(Exception):
     pass
@@ -37,57 +42,30 @@ def auth():
     global access_token
     access_token = data["access_token"]
 
-def all_findings():
-
-    global access_token
-
-    headers = {
-        'Content-Type' : 'application/json', 
-        'Authorization': 'Bearer {}'.format(access_token)
-    }
-    payload = "{\n}"
-    url = 'https://api.securestate.vmware.com/v2/findings/query'
-    response = requests.post(url , data=payload, headers=headers)
+"""Add Payload Filters - Payload, Existing Filters (Set True if filters exist), Set Levels Filter(If filtering by severity should be enabled), Status of findings ("Open" or "Resolved")"""
+def add_payload_filters(pl, existing_filters=True, set_levels_filter=False,status="Open"):
+    if(existing_filters):
+        pass    
+    else:
+        filter_dict = {"filters":{}}
+        
+        pl.update(filter_dict)
     
-    try:
-        if(response.status_code !=200):
-            raise ErrorStatusCode(str(response.status_code))
-    except ErrorStatusCode:
-            logging.error("Cannot generate report " + str(response.content) + "\n")
-            sys.exit()
+    if(get_config()["config"]["cloudAccountIds"][0].lower() != "all"):
+            pl["filters"]["cloudAccountIds"] = get_config()["config"]["cloudAccountIds"]
+            pl["filters"]["status"] = status
+    if(isinstance(get_config()["config"]["cloudTags"], dict)):
+            pl["filters"]["cloudTags"] = get_config()["config"]["cloudTags"]
+            pl["filters"]["status"] = status
+    if(isinstance(get_config()["config"]["severity"], list) and set_levels_filter):
+            pl["filters"]["levels"] = get_config()["config"]["severity"]
+            pl["filters"]["status"] = status
+    if(isinstance(get_config()["config"]["providers"], list)):
+            pl["filters"]["cloudProviders"] = get_config()["config"]["providers"]
+            pl["filters"]["status"] = status
+        
+    return pl
 
-    # Fetch the continuation Token
-    data = json.loads(response.content)
-    continuationToken = data["continuationToken"]
-
-    # Get the entire payload for 1000 objects
-    headers = {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer {}'.format(access_token)
-    }
-
-    # replace cloud provider key with "AWS" for Amazon web services related violations
-    payload = {
-                "filters": {
-                    "cloudProvider": "AWS"
-                    },
-                "paginationInfo":{
-                    "continuationToken": continuationToken,
-                    "pageSize":1000
-                    }
-            }
-
-    url = 'https://api.securestate.vmware.com/v2/findings/query'
-    response = requests.post(url , data=json.dumps(payload), headers=headers)
-    
-    try:
-        if(response.status_code !=200):
-            raise ErrorStatusCode(str(response.status_code))
-    except ErrorStatusCode:
-            logging.error("Cannot generate report " + str(response.content) + "\n")
-            sys.exit() 
-
-    return response
 
 def vss_account_info():
     
@@ -105,16 +83,9 @@ def vss_account_info():
                                 }
                             }
                }    
-        
-    if(get_config()["config"]["cloudAccountIds"][0].lower() != "all"):
-            filter_dict = {"filters":{
-                            "cloudAccountIds":get_config()["config"]["cloudAccountIds"]
-            }}
-            payload.update(filter_dict)
     
-    
-    logging.info(payload)
-    
+    payload = add_payload_filters(payload, False, True)
+
     headers = {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer {}'.format(access_token)
@@ -168,6 +139,7 @@ def vss_top_10_rules():
 	    }
     }
     
+    payload = add_payload_filters(payload, False, True)
     
     headers = {
         'Content-Type': 'application/json',
@@ -202,9 +174,8 @@ def vss_open_resolved_findings():
                     "status":"Resolved"
                     }
             }
-    
-    if(get_config()["config"]["cloudAccountIds"][0].lower() != "all"):
-        payload["filters"]["cloudAccountIds"] = get_config()["config"]["cloudAccountIds"]
+        
+    payload = add_payload_filters(payload, True, True, status="Resolved")
     
     headers = {
         'Content-Type': 'application/json',
@@ -245,6 +216,48 @@ def vss_frameworks():
         json.dump(response.json(), output_file, indent=4)
     output_file.close()
 
+def vss_top_10_by_severity(sev, accounts):
+    url = "https://api.securestate.vmware.com/v2/findings/query"
+
+    payload = {
+            "aggregations":{
+                "cloud":{
+                    "fieldName":"CloudProvider",
+                    "aggregationType":"Terms",
+                    "subAggregations": {
+                        sev:{
+                            "fieldName":"CloudAccountId",
+                            "aggregationType":"Terms",
+                            "termsCount": 10
+                        }
+                    }
+                }
+            },
+            "filters":{
+                "cloudAccountIds": accounts,
+                "levels":[sev],
+                "status":"Open"    
+            }
+        }
+    
+    payload = add_payload_filters(payload, True, set_levels_filter=False)
+    
+    headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer {}'.format(access_token)
+    }
+    
+    response = requests.post(url, data=json.dumps(payload), headers=headers)
+
+    try:
+        if(response.status_code !=200):
+            raise ErrorStatusCode(str(response.status_code))
+    except ErrorStatusCode:
+            logging.error("Cannot generate report " + str(response.content) + "\n")
+            sys.exit()
+    
+    return response
+
 def vss_high_med_low_top_10_findings():
     
     with open("data/account_info.json", "r") as accounts_info:
@@ -258,42 +271,7 @@ def vss_high_med_low_top_10_findings():
     for account in open_accounts:
         top_10_account.append(account)   
     
-    url = "https://api.securestate.vmware.com/v2/findings/query"
-
-    payload = {
-            "aggregations":{
-                "cloud":{
-                    "fieldName":"CloudProvider",
-                    "aggregationType":"Terms",
-                    "subAggregations": {
-                        "high":{
-                            "fieldName":"CloudAccountId",
-                            "aggregationType":"Terms",
-                            "termsCount": 10
-                        }
-                    }
-                }
-            },
-            "filters":{
-                "cloudAccountIds": top_10_account,
-                "levels":["High"],
-                "status":"Open"    
-            }
-        }
-    
-    headers = {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer {}'.format(access_token)
-    }
-    
-    response = requests.post(url, data=json.dumps(payload), headers=headers)
-
-    try:
-        if(response.status_code !=200):
-            raise ErrorStatusCode(str(response.status_code))
-    except ErrorStatusCode:
-            logging.error("Cannot generate report " + str(response.content) + "\n")
-            sys.exit()
+    response = vss_top_10_by_severity("high", top_10_account)
     
     with open("data/high_severity_top_10.json", "w") as output_file:
         json.dump(response.json(), output_file, indent=4)
@@ -301,84 +279,14 @@ def vss_high_med_low_top_10_findings():
 
     #Medium Severity
     
-    url = "https://api.securestate.vmware.com/v2/findings/query"
-
-    payload = {
-            "aggregations":{
-                "cloud":{
-                    "fieldName":"CloudProvider",
-                    "aggregationType":"Terms",
-                    "subAggregations": {
-                        "medium":{
-                            "fieldName":"CloudAccountId",
-                            "aggregationType":"Terms",
-                            "termsCount": 10
-                        }
-                    }
-                }
-            },
-            "filters":{
-                "cloudAccountIds": top_10_account,
-                "levels":["Medium"],
-                "status":"Open"    
-            }
-        }
-    
-    headers = {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer {}'.format(access_token)
-    }
-    
-    response = requests.post(url, data=json.dumps(payload), headers=headers)
-
-    try:
-        if(response.status_code !=200):
-            raise ErrorStatusCode(str(response.status_code))
-    except ErrorStatusCode:
-            logging.error("Cannot generate report " + str(response.content) + "\n")
-            sys.exit()
+    response = vss_top_10_by_severity("medium", top_10_account)
     
     with open("data/medium_severity_top_10.json", "w") as output_file:
         json.dump(response.json(), output_file, indent=4)
     output_file.close()
 
 
-    url = "https://api.securestate.vmware.com/v2/findings/query"
-
-    payload = {
-            "aggregations":{
-                "cloud":{
-                    "fieldName":"CloudProvider",
-                    "aggregationType":"Terms",
-                    "subAggregations": {
-                        "low":{
-                            "fieldName":"CloudAccountId",
-                            "aggregationType":"Terms",
-                            "termsCount": 10
-                        }
-                    }
-                }
-            },
-            "filters":{
-                "cloudAccountIds": top_10_account,
-                "levels":["Low"],
-                "status":"Open"    
-            }
-        }
-    
-    headers = {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer {}'.format(access_token)
-    }
-    
-    response = requests.post(url, data=json.dumps(payload), headers=headers)
-
-    try:
-        if(response.status_code !=200):
-            raise ErrorStatusCode(str(response.status_code))
-    except ErrorStatusCode:
-            logging.error("Cannot generate report " + str(response.content) + "\n")
-            sys.exit()
+    response = vss_top_10_by_severity("low", top_10_account)
     
     with open("data/low_severity_top_10.json", "w") as output_file:
         json.dump(response.json(), output_file, indent=4)
@@ -409,8 +317,18 @@ def vss_suppressed_findings():
 
         }
 
+
     if(get_config()["config"]["cloudAccountIds"][0].lower() != "all"):
         payload["filters"]["cloudAccountIds"] = get_config()["config"]["cloudAccountIds"]
+    
+    if(isinstance(get_config()["config"]["cloudTags"], dict)):
+        payload["filters"]["cloudTags"] = get_config()["config"]["cloudTags"]
+        
+    if(isinstance(get_config()["config"]["severity"], list)):
+        payload["filters"]["levels"] = get_config()["config"]["severity"]
+        
+    if(isinstance(get_config()["config"]["providers"], list)):
+        payload["filters"]["cloudProviders"] = get_config()["config"]["providers"]
 
     headers = {
         'Content-Type': 'application/json',
@@ -445,9 +363,8 @@ def vss_all_violations_by_severity():
                 "status":"Open"
             }
         }
-    
-    if(get_config()["config"]["cloudAccountIds"][0].lower() != "all"):
-        payload["filters"]["cloudAccountIds"] = get_config()["config"]["cloudAccountIds"]
+        
+    payload = add_payload_filters(payload, True)
     
     headers = {
         'Content-Type': 'application/json',
@@ -480,8 +397,7 @@ def vss_all_violations_by_severity():
                 }
         }
     
-    if(get_config()["config"]["cloudAccountIds"][0].lower() != "all"):
-        payload["filters"]["cloudAccountIds"] = get_config()["config"]["cloudAccountIds"]
+    payload = add_payload_filters(payload, True)
     
     response = requests.post(url, data=json.dumps(payload), headers=headers)
     
@@ -509,8 +425,8 @@ def vss_all_violations_by_severity():
                 }
             }
     
-    if(get_config()["config"]["cloudAccountIds"][0].lower() != "all"):
-        payload["filters"]["cloudAccountIds"] = get_config()["config"]["cloudAccountIds"]
+    payload = add_payload_filters(payload, True)
+
     
     response = requests.post(url, data=json.dumps(payload), headers=headers)
     
@@ -569,6 +485,12 @@ def vss_top_10_objects_by_risk():
                 }
             }
     
+    
+    payload = add_payload_filters(payload, True, set_levels_filter=True)
+    
+    # if(isinstance(get_config()["config"]["cloudTags"], dict)):
+    #     payload["filters"]["cloudTags"] = get_config()["config"]["cloudTags"]
+    
     headers = {
         'Content-Type':'application/json',
         'Authorization': 'Bearer {}'.format(access_token)
@@ -597,8 +519,10 @@ def vss_trends():
             "TopNThreshold":3
         }
 
-    if(get_config()["config"]["cloudAccountIds"][0].lower() != "all"):
-        payload["filters"]["cloudAccountIds"] = get_config()["config"]["cloudAccountIds"]
+
+    payload = add_payload_filters(payload, True, set_levels_filter=True)
+    
+    logging.info(payload)
     
     headers = {
         'Content-Type': 'application/json',
@@ -678,6 +602,8 @@ def get_config():
         configuration = json.load(config_file)
     config_file.close()
     
+    
+    
     return configuration
 
 
@@ -742,19 +668,13 @@ def get_high_med_low_top_10_violations():
     with open("data/account_info.json", "r") as accounts_info:
         accounts = json.load(accounts_info)
     accounts_info.close()
-
-    with open("data/high_severity_top_10.json", "r") as severity_info:
-        high_sev = json.load(severity_info)
-    severity_info.close()
     
-    with open("data/medium_severity_top_10.json", "r") as severity_info:
-        medium_sev = json.load(severity_info)
-    severity_info.close()
+    open_accounts = accounts["aggregations"]["accounts"]["buckets"]
+    sorted_open_accounts = dict(sorted(open_accounts.items(), key=lambda k_v:k_v[1]['count'], reverse=True))
     
-    with open("data/low_severity_top_10.json", "r") as severity_info:
-        low_sev = json.load(severity_info)
-    severity_info.close()
-    
+    high_sev = {}
+    medium_sev = {}
+    low_sev = {}
     aws_suppressed_findings = {}
     azure_suppressed_findings = {}
     aws_accounts_high_sev = {}
@@ -764,24 +684,36 @@ def get_high_med_low_top_10_violations():
     aws_accounts_low_sev = {}
     azure_accounts_low_sev = {}
     
-    open_accounts = accounts["aggregations"]["accounts"]["buckets"]
-    sorted_open_accounts = dict(sorted(open_accounts.items(), key=lambda k_v:k_v[1]['count'], reverse=True))
+    if("high" in (level.lower() for level in get_config()["config"]["severity"])):
+        with open("data/high_severity_top_10.json", "r") as severity_info:
+            high_sev = json.load(severity_info)
+        severity_info.close()
+        if("aws" in high_sev["aggregations"]["cloud"]["buckets"]):
+            aws_accounts_high_sev = high_sev["aggregations"]["cloud"]["buckets"]["aws"]["subAggregations"]["high"]["buckets"]
+        if("azure" in high_sev["aggregations"]["cloud"]["buckets"]):
+            azure_accounts_high_sev = high_sev["aggregations"]["cloud"]["buckets"]["azure"]["subAggregations"]["high"]["buckets"]
     
-    if("aws" in high_sev["aggregations"]["cloud"]["buckets"]):
-        aws_accounts_high_sev = high_sev["aggregations"]["cloud"]["buckets"]["aws"]["subAggregations"]["high"]["buckets"]
-    if("azure" in high_sev["aggregations"]["cloud"]["buckets"]):
-        azure_accounts_high_sev = high_sev["aggregations"]["cloud"]["buckets"]["azure"]["subAggregations"]["high"]["buckets"]
-        
-    if("aws" in medium_sev["aggregations"]["cloud"]["buckets"]):
-        aws_accounts_med_sev = medium_sev["aggregations"]["cloud"]["buckets"]["aws"]["subAggregations"]["medium"]["buckets"]
-    if("azure" in medium_sev["aggregations"]["cloud"]["buckets"]):
-        azure_accounts_med_sev = medium_sev["aggregations"]["cloud"]["buckets"]["azure"]["subAggregations"]["medium"]["buckets"]
     
-    if("aws" in low_sev["aggregations"]["cloud"]["buckets"]):
-        aws_accounts_low_sev = low_sev["aggregations"]["cloud"]["buckets"]["aws"]["subAggregations"]["low"]["buckets"]
-    if("azure" in low_sev["aggregations"]["cloud"]["buckets"]):
-        azure_accounts_low_sev = low_sev["aggregations"]["cloud"]["buckets"]["azure"]["subAggregations"]["low"]["buckets"]
+    if("medium" in (level.lower() for level in get_config()["config"]["severity"])):
+        with open("data/medium_severity_top_10.json", "r") as severity_info:
+            medium_sev = json.load(severity_info)
+        severity_info.close()
+            
+        if("aws" in medium_sev["aggregations"]["cloud"]["buckets"]):
+            aws_accounts_med_sev = medium_sev["aggregations"]["cloud"]["buckets"]["aws"]["subAggregations"]["medium"]["buckets"]
+        if("azure" in medium_sev["aggregations"]["cloud"]["buckets"]):
+            azure_accounts_med_sev = medium_sev["aggregations"]["cloud"]["buckets"]["azure"]["subAggregations"]["medium"]["buckets"]
     
+    if("low" in (level.lower() for level in get_config()["config"]["severity"])):
+    
+        with open("data/low_severity_top_10.json", "r") as severity_info:
+            low_sev = json.load(severity_info)
+        severity_info.close()
+    
+        if("aws" in low_sev["aggregations"]["cloud"]["buckets"]):
+            aws_accounts_low_sev = low_sev["aggregations"]["cloud"]["buckets"]["aws"]["subAggregations"]["low"]["buckets"]
+        if("azure" in low_sev["aggregations"]["cloud"]["buckets"]):
+            azure_accounts_low_sev = low_sev["aggregations"]["cloud"]["buckets"]["azure"]["subAggregations"]["low"]["buckets"]
     
     with open("data/suppressed_findings.json", "r") as suppressed_info:
         suppressed_findings = json.load(suppressed_info)
@@ -808,10 +740,10 @@ def get_high_med_low_top_10_violations():
             high = azure_accounts_high_sev[account]["count"]
             provider = "Azure"
         if (account in aws_accounts_med_sev):
-            med = aws_accounts_med_sev[account]["count"]
+            medium = aws_accounts_med_sev[account]["count"]
             provider = "AWS"
         elif(account in azure_accounts_med_sev):
-            med = azure_accounts_med_sev[account]["count"]
+            medium = azure_accounts_med_sev[account]["count"]
             provider = "Azure"
         if (account in aws_accounts_low_sev):           
             low = aws_accounts_low_sev[account]["count"]         
@@ -830,7 +762,7 @@ def get_high_med_low_top_10_violations():
         data.append(provider)
         data.append(account)
         data.append(high)
-        data.append(med)
+        data.append(medium)
         data.append(low)
         data.append(suppressed)
         final_result.append(data)
@@ -839,17 +771,10 @@ def get_high_med_low_top_10_violations():
     
 def get_all_violations_by_severity():
     
-    with open("data/high_severity.json", "r") as output_file:
-        high = json.load(output_file)
-    output_file.close()
     
-    with open("data/medium_severity.json", "r") as output_file:
-        medium = json.load(output_file)
-    output_file.close()
-    
-    with open("data/low_severity.json", "r") as output_file:
-        low = json.load(output_file)
-    output_file.close()
+    high = {}
+    medium = {}
+    low = {}
     
     aws_high = 0 
     azure_high = 0
@@ -858,37 +783,50 @@ def get_all_violations_by_severity():
     aws_low = 0 
     azure_low = 0 
     
+    if("high" in (level.lower() for level in get_config()["config"]["severity"])):
+        with open("data/high_severity.json", "r") as output_file:
+            high = json.load(output_file)
+        output_file.close()
+        if("aws" in high["aggregations"]["cloud"]["buckets"]):
+            if("count" in high["aggregations"]["cloud"]["buckets"]["aws"]):
+                aws_high = high["aggregations"]["cloud"]["buckets"]["aws"]["count"]
+            else:
+                aws_high = 0
+        if("azure" in high["aggregations"]["cloud"]["buckets"]):
+            if("count" in high["aggregations"]["cloud"]["buckets"]["azure"]):   
+                azure_high = high["aggregations"]["cloud"]["buckets"]["azure"]["count"]
+            else:
+                azure_high = 0
     
-    if("aws" in high["aggregations"]["cloud"]["buckets"]):
-        if("count" in high["aggregations"]["cloud"]["buckets"]["aws"]):
-            aws_high = high["aggregations"]["cloud"]["buckets"]["aws"]["count"]
-        else:
-            aws_high = 0
-    if("azure" in high["aggregations"]["cloud"]["buckets"]):
-        if("count" in high["aggregations"]["cloud"]["buckets"]["azure"]):   
-            azure_high = high["aggregations"]["cloud"]["buckets"]["azure"]["count"]
-        else:
-            azure_high = 0
-    if("aws" in medium["aggregations"]["cloud"]["buckets"]):
-        if("count" in high["aggregations"]["cloud"]["buckets"]["aws"]):
-            aws_med = medium["aggregations"]["cloud"]["buckets"]["aws"]["count"]
-        else:
-            aws_med = 0
-    if("azure" in medium["aggregations"]["cloud"]["buckets"]):
-        if("count" in high["aggregations"]["cloud"]["buckets"]["azure"]):
-            azure_med = medium["aggregations"]["cloud"]["buckets"]["azure"]["count"]
-        else:
-            azure_med = 0
-    if("aws" in low["aggregations"]["cloud"]["buckets"]):
-        if("count" in high["aggregations"]["cloud"]["buckets"]["aws"]):
-            aws_low = low["aggregations"]["cloud"]["buckets"]["aws"]["count"]
-        else:
-            aws_low = 0
-    if("azure" in low["aggregations"]["cloud"]["buckets"]):
-        if("count" in high["aggregations"]["cloud"]["buckets"]["azure"]):
-            azure_low = low["aggregations"]["cloud"]["buckets"]["azure"]["count"]
-        else:
-            azure_low = 0
+    if("medium" in (level.lower() for level in get_config()["config"]["severity"])):
+        with open("data/medium_severity.json", "r") as output_file:
+            medium = json.load(output_file)
+        output_file.close()
+        if("aws" in medium["aggregations"]["cloud"]["buckets"]):
+            if("count" in medium["aggregations"]["cloud"]["buckets"]["aws"]):
+                aws_med = medium["aggregations"]["cloud"]["buckets"]["aws"]["count"]
+            else:
+                aws_med = 0
+        if("azure" in medium["aggregations"]["cloud"]["buckets"]):
+            if("count" in medium["aggregations"]["cloud"]["buckets"]["azure"]):
+                azure_med = medium["aggregations"]["cloud"]["buckets"]["azure"]["count"]
+            else:
+                azure_med = 0 
+    
+    if("low" in (level.lower() for level in get_config()["config"]["severity"])):
+        with open("data/low_severity.json", "r") as output_file:
+            low = json.load(output_file)
+        output_file.close()
+        if("aws" in low["aggregations"]["cloud"]["buckets"]):
+            if("count" in low["aggregations"]["cloud"]["buckets"]["aws"]):
+                aws_low = low["aggregations"]["cloud"]["buckets"]["aws"]["count"]
+            else:
+                aws_low = 0
+        if("azure" in low["aggregations"]["cloud"]["buckets"]):
+            if("count" in low["aggregations"]["cloud"]["buckets"]["azure"]):
+                azure_low = low["aggregations"]["cloud"]["buckets"]["azure"]["count"]
+            else:
+                azure_low = 0
     
     aws = [aws_high, aws_med, aws_low]
     azure = [azure_high, azure_med, azure_low]
@@ -936,10 +874,16 @@ def get_top_10_objects_by_risk():
         objects_top_10 = json.load(object_risks_info)
     object_risks_info.close()
     
-    aws_object_ids = objects_top_10["aggregations"]["provider"]["buckets"]["aws"]["subAggregations"]["findingsCount"]["buckets"]
-    azure_object_ids = objects_top_10["aggregations"]["provider"]["buckets"]["azure"]["subAggregations"]["findingsCount"]["buckets"]
+    aws_object_ids = []
+    azure_object_ids = []
+    result = []          
+    
+    if("aws" in objects_top_10["aggregations"]["provider"]["buckets"]):
+        aws_object_ids = objects_top_10["aggregations"]["provider"]["buckets"]["aws"]["subAggregations"]["findingsCount"]["buckets"]
+  
+    if("azure" in objects_top_10["aggregations"]["provider"]["buckets"]):
+        azure_object_ids = objects_top_10["aggregations"]["provider"]["buckets"]["azure"]["subAggregations"]["findingsCount"]["buckets"]
 
-    result = []
     for obj in aws_object_ids:
         data = []
         provider = "AWS"
@@ -1047,11 +991,11 @@ def gather_data():
     vss_frameworks()
     logging.info("Gathering Open and Resolved Findings\n")
     vss_open_resolved_findings()
-    logging.info("Gathering Findings by severity\n")
+    logging.info("Gathering Top 10 Findings by severity\n")
     vss_high_med_low_top_10_findings()
     logging.info("Gathering Suppressed Findings\n")
     vss_suppressed_findings()
-    logging.info("Gathering Findings by severity\n")
+    logging.info("Gathering All Findings by severity\n")
     vss_all_violations_by_severity()
     logging.info("Gathering Top 10 Rules\n")
     vss_top_10_rules()

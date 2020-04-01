@@ -1,9 +1,9 @@
 {
     "config":{
-        "provider": ["AWS", "Azure"],
-        "severity": ["High","Medium", "low"],
-        "cloud_tag":{"aws:cloudformation:logical-id": ["vpc"]},
-        "cloudAccountIds":["all"]
+        "providers": ["AWS"],
+        "severity": ["High", "medium", "low"],
+        "cloudTags":{},
+        "cloudAccountIds":["All"]
     }
 }
 
