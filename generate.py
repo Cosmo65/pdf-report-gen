@@ -37,6 +37,7 @@ ParaStyle = styles["Normal"]
 styleN = styles["BodyText"]
 WIDTH = defaultPageSize[0]
 HEIGHT = defaultPageSize[1]
+Config_file_name = ""
 
 
 #CommonData adds page number and header to every page at the footer on bottom right corner
@@ -798,20 +799,25 @@ def newPage():
     fields.append(PageBreak())
 
 # Creates the initial report document
-def init_report():
-    doc = SimpleDocTemplate("vss_compliance_report.pdf", pagesize=LETTER)
+def init_report(report_name):
+    doc = SimpleDocTemplate(report_name, pagesize=LETTER)
     return doc
 
 def build_report(document):
     document.build(fields, canvasmaker=CommonData)
     logging.info("Successfully generated report !!\n")
 
+
 if __name__ == '__main__':
     logging.getLogger().setLevel(logging.INFO)
-    logging.info("Generating Report ...")
+    
+    Config_file_name = input("\nEnter Configuration file name \n")
+    report_file_name = input("\nEnter Report file name \n")
+    
+    logging.info("\nGenerating Report ...\n")
     auth()
     gather_data()
-    doc = init_report()  
+    doc = init_report(report_file_name)  
     frameFirstPage = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id='normal')
     #fields.append(FrameBreak())
     exec_summary_frame, intro_frame, scope_frame, progress_title_frame, trend_frame_1, trend_frame_2 = add_executive_summary_section()
@@ -828,10 +834,5 @@ if __name__ == '__main__':
                       ])
     
     add_asset_risk_overview()
-    
-    # Compliance Overview
-    #frame_aws_cis, frame_azure_cis = add_compliance_risk_overview()
-    #doc.addPageTemplates([PageTemplate(id='TwoDonuts',frames=[frame_aws_cis, frame_azure_cis])])
-    
     
     build_report(doc)

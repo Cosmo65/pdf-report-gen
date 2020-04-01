@@ -6,6 +6,7 @@ import sys
 from operator import itemgetter
 from iso8601utils import parsers
 import calendar
+from generate import Config_file_name
 
 access_token = ''
 
@@ -67,6 +68,25 @@ def add_payload_filters(pl, existing_filters=True, set_levels_filter=False,statu
     return pl
 
 
+def create_or_update_file(file_path, content):
+    if os.path.isfile(file_path):
+        with open(file_path, "w") as output_file:
+            json.dump(content.json(), output_file, indent=4)
+        output_file.close()
+    else:
+        output_file = open(file_path, "w")
+        json.dump(content.json(), output_file, indent=4)
+        output_file.close()
+ 
+ 
+def create_dir():
+    if os.path.isdir("data"):
+        logging.info("data directory exists in current path\n")
+    else:
+        logging.info("Creating data directory\n")
+        os.mkdir("data")   
+        logging.info("Successfully created data directory\n")
+
 def vss_account_info():
     
     url = "https://api.securestate.vmware.com/v2/findings/query"
@@ -100,9 +120,7 @@ def vss_account_info():
             logging.error("Cannot generate report " + str(response.content) + "\n")
             sys.exit()   
     
-    with open("data/account_info.json", "w") as output_file:
-        json.dump(response.json(), output_file, indent=4)
-    output_file.close()
+    create_or_update_file("data/account_info.json", response)
     
 def vss_all_rules():
     url = "https://api.securestate.vmware.com/v1/rules/query"
@@ -120,10 +138,8 @@ def vss_all_rules():
     except ErrorStatusCode:
             logging.error("Cannot generate report " + str(response.content) + "\n")
             sys.exit()
-            
-    with open("data/all_rules_info.json", "w") as output_file:
-        json.dump(response.json(), output_file, indent=4)
-    output_file.close()
+        
+    create_or_update_file("data/all_rules_info.json", response)
 
 def vss_top_10_rules():
     
@@ -155,9 +171,7 @@ def vss_top_10_rules():
             logging.error("Cannot generate report " + str(response.content) + "\n")
             sys.exit()   
     
-    with open("data/rules_info_top_10.json", "w") as output_file:
-        json.dump(response.json(), output_file, indent=4)
-    output_file.close()
+    create_or_update_file("data/rules_info_top_10.json", response)
     
 
 def vss_open_resolved_findings():
@@ -191,9 +205,8 @@ def vss_open_resolved_findings():
             logging.error("Cannot generate report " + str(response.content) + "\n")
             sys.exit()
     
-    with open("data/resolved_findings.json", "w") as output_file:
-        json.dump(response.json(), output_file, indent=4)
-    output_file.close()
+    
+    create_or_update_file("data/resolved_findings.json", response)
     
 def vss_frameworks():
     url = "https://api.securestate.vmware.com/v1/compliance-frameworks"
@@ -212,9 +225,8 @@ def vss_frameworks():
             logging.error("Cannot generate report " + str(response.content) + "\n")
             sys.exit()
     
-    with open("data/frameworks.json", "w") as output_file:
-        json.dump(response.json(), output_file, indent=4)
-    output_file.close()
+    create_or_update_file("data/frameworks.json", response)
+
 
 def vss_top_10_by_severity(sev, accounts):
     url = "https://api.securestate.vmware.com/v2/findings/query"
@@ -273,24 +285,20 @@ def vss_high_med_low_top_10_findings():
     
     response = vss_top_10_by_severity("high", top_10_account)
     
-    with open("data/high_severity_top_10.json", "w") as output_file:
-        json.dump(response.json(), output_file, indent=4)
-    output_file.close()
+    create_or_update_file("data/high_severity_top_10.json", response)
 
     #Medium Severity
     
     response = vss_top_10_by_severity("medium", top_10_account)
-    
-    with open("data/medium_severity_top_10.json", "w") as output_file:
-        json.dump(response.json(), output_file, indent=4)
-    output_file.close()
+ 
+    create_or_update_file("data/medium_severity_top_10.json", response)
 
+    # Low Severity
 
     response = vss_top_10_by_severity("low", top_10_account)
     
-    with open("data/low_severity_top_10.json", "w") as output_file:
-        json.dump(response.json(), output_file, indent=4)
-    output_file.close()
+    create_or_update_file("data/low_severity_top_10.json", response)
+    
 
 def vss_suppressed_findings():
     
@@ -344,9 +352,7 @@ def vss_suppressed_findings():
             logging.error("Cannot generate report " + str(response.content) + "\n")
             sys.exit()
     
-    with open("data/suppressed_findings.json", "w") as output_file:
-        json.dump(response.json(), output_file, indent=4)
-    output_file.close()
+    create_or_update_file("data/suppressed_findings.json", response)
 
 def vss_all_violations_by_severity():
     
@@ -380,9 +386,8 @@ def vss_all_violations_by_severity():
             logging.error("Cannot generate report " + str(response.content) + "\n")
             sys.exit()
     
-    with open("data/high_severity.json", "w") as output_file:
-        json.dump(response.json(), output_file, indent=4)
-    output_file.close()
+    
+    create_or_update_file("data/high_severity.json", response)
     
     payload = {
             "aggregations":{
@@ -408,9 +413,7 @@ def vss_all_violations_by_severity():
             logging.error("Cannot generate report " + str(response.content) + "\n")
             sys.exit()
     
-    with open("data/medium_severity.json", "w") as output_file:
-        json.dump(response.json(), output_file, indent=4)
-    output_file.close()
+    create_or_update_file("data/medium_severity.json", response)
     
     payload = {
             "aggregations":{
@@ -427,7 +430,6 @@ def vss_all_violations_by_severity():
     
     payload = add_payload_filters(payload, True)
 
-    
     response = requests.post(url, data=json.dumps(payload), headers=headers)
     
     try:
@@ -437,10 +439,7 @@ def vss_all_violations_by_severity():
             logging.error("Cannot generate report " + str(response.content) + "\n")
             sys.exit()
     
-    with open("data/low_severity.json", "w") as output_file:
-        json.dump(response.json(), output_file, indent=4)
-    output_file.close()
-
+    create_or_update_file("data/low_severity.json", response)
 
 def vss_top_10_objects_by_risk():
     url = "https://api.securestate.vmware.com/v2/findings/query"
@@ -488,9 +487,6 @@ def vss_top_10_objects_by_risk():
     
     payload = add_payload_filters(payload, True, set_levels_filter=True)
     
-    # if(isinstance(get_config()["config"]["cloudTags"], dict)):
-    #     payload["filters"]["cloudTags"] = get_config()["config"]["cloudTags"]
-    
     headers = {
         'Content-Type':'application/json',
         'Authorization': 'Bearer {}'.format(access_token)
@@ -505,9 +501,7 @@ def vss_top_10_objects_by_risk():
             logging.error("Cannot generate report " + str(response.content) + "\n")
             sys.exit()
     
-    with open("data/objects_risk_top_10.json", "w") as output_file:
-        json.dump(response.json(), output_file, indent=4)
-    output_file.close()
+    create_or_update_file("data/objects_risk_top_10.json", response)
     
 def vss_trends():
     url = "https://api.securestate.vmware.com/v2/findings/trends-query"
@@ -521,8 +515,6 @@ def vss_trends():
 
 
     payload = add_payload_filters(payload, True, set_levels_filter=True)
-    
-    logging.info(payload)
     
     headers = {
         'Content-Type': 'application/json',
@@ -538,11 +530,7 @@ def vss_trends():
             logging.error("Cannot generate report " + str(response.content) + "\n")
             sys.exit()
     
-    with open("data/trends.json", "w") as output_file:
-        json.dump(response.json(), output_file, indent=4)
-    output_file.close()
-    
-
+    create_or_update_file("data/trends.json", response)
 
 def get_org_name():
     return "Company Inc."
@@ -601,8 +589,6 @@ def get_config():
     with open("config.json") as config_file:
         configuration = json.load(config_file)
     config_file.close()
-    
-    
     
     return configuration
 
@@ -980,9 +966,13 @@ def get_new_resolved_trends():
     result.append(data)
     
     return result, trend_month
-        
+
+
 
 def gather_data():
+    
+    logging.info("Checking to see if data directory exists\n")
+    create_dir()
     logging.info("Gathering Account Info\n")
     vss_account_info()
     logging.info("Gathering All Rules Info\n")
