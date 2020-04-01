@@ -1,2 +1,10 @@
+certifi==2019.11.28
+chardet==3.0.4
+enum34==1.1.10
+idna==2.9
+iso8601utils==0.1.2
+MonthDelta==1.0b0
 Pillow==7.0.0
 reportlab==3.5.34
+requests==2.23.0
+urllib3==1.25.8
