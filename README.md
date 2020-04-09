@@ -19,9 +19,10 @@
 
 Here are some sample config files.
 
-* Sample 1
+* Sample 1 - config.json
 
-```json{
+```json
+{
     "org_name":"Test Inc",
     "config":{
         "providers": ["AWS", "Azure"],
@@ -32,9 +33,10 @@ Here are some sample config files.
 }
 ```
 
-* Sample 2
+* Sample 2 - config_2.json
 
-```json{
+```json
+{
     "org_name":"Demo Inc",
     "config":{
         "providers": ["AWS"],
