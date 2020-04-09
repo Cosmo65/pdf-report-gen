@@ -11,7 +11,7 @@
 1. virtualenv (Optional but recommended) 
 2. Python3.7 or higher
 3. pip3
-4. pip3 install -r requirements.txt
+4. Run `pip3 install -r requirements.txt`
 
 #### Generating Report
 
