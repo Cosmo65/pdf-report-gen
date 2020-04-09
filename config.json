@@ -1,7 +1,8 @@
 {
+    "org_name":"ACME Inc",
     "config":{
-        "providers": ["AWS"],
-        "severity": ["High", "low"],
+        "providers": ["AWS", "Azure"],
+        "severity": ["High", "Medium", "low"],
         "cloudTags":{},
         "cloudAccountIds":["All"]
     }

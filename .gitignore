@@ -1,5 +1,6 @@
 __pycache__/
 .DS_store
+vss_*
 vss_compliance_report.pdf
 *.json
 data/

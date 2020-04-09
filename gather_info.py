@@ -3,11 +3,13 @@ import requests
 import os
 import json
 import sys
+import calendar
+
 from operator import itemgetter
 from iso8601utils import parsers
-import calendar
 from generate import Config_file_name
 
+# Access Token from CSP
 access_token = ''
 
 if "REFRESH_TOKEN" in os.environ:
@@ -78,7 +80,7 @@ def create_or_update_file(file_path, content):
         json.dump(content.json(), output_file, indent=4)
         output_file.close()
  
- 
+# Creates necessary directories
 def create_dir():
     if os.path.isdir("data"):
         logging.info("data directory exists in current path\n")
@@ -533,7 +535,7 @@ def vss_trends():
     create_or_update_file("data/trends.json", response)
 
 def get_org_name():
-    return "Company Inc."
+    return get_config()["org_name"]
 
 def get_account_info():
 
@@ -711,6 +713,11 @@ def get_high_med_low_top_10_violations():
         azure_suppressed_findings = suppressed_findings["aggregations"]["cloud"]["buckets"]["azure"]["subAggregations"]["suppressed"]["buckets"]
        
 
+    
+    with open("data/resolved_findings.json", "r") as output_file:
+        resolved_findings = json.load(output_file)
+    output_file.close()
+
     final_result = []
     
     for account in sorted_open_accounts:
@@ -718,6 +725,7 @@ def get_high_med_low_top_10_violations():
         medium = 0
         low = 0
         suppressed = 0
+        resolved = 0
             
         if (account in aws_accounts_high_sev):
             high = aws_accounts_high_sev[account]["count"]
@@ -743,6 +751,8 @@ def get_high_med_low_top_10_violations():
         elif(account in azure_suppressed_findings):
             suppressed = azure_suppressed_findings[account]["count"]
             provider = "Azure"
+        if(account in resolved_findings["aggregations"]["accounts"]["buckets"]):
+            resolved = resolved_findings["aggregations"]["accounts"]["buckets"][account]["count"]            
             
         data = []
         data.append(provider)
@@ -751,6 +761,7 @@ def get_high_med_low_top_10_violations():
         data.append(medium)
         data.append(low)
         data.append(suppressed)
+        data.append(resolved)
         final_result.append(data)
 
     return final_result
@@ -968,7 +979,7 @@ def get_new_resolved_trends():
     return result, trend_month
 
 
-
+# Sequentially makes API calls to Secure state to gather information and store it in a directory
 def gather_data():
     
     logging.info("Checking to see if data directory exists\n")

@@ -1,9 +1,14 @@
-# generate json files about data from different sources
-# Then create pdf from it
+# Generates PDF file with VSS report
+# NOTE: DO NOT modify the file unless you are aware of the changes because of reportlab PDF
+
+import argparse
+import logging
+import textwrap
+import datetime
+
 
 from reportlab.pdfgen import canvas
 from reportlab.graphics.charts.piecharts import Pie
-import logging
 from reportlab.lib.enums import TA_JUSTIFY
 from reportlab.lib.pagesizes import A4, LETTER
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -18,9 +23,7 @@ from reportlab.graphics.charts.linecharts import *
 from reportlab.graphics.charts.legends import Legend
 from reportlab.graphics.charts.textlabels import Label
 from reportlab.platypus.tableofcontents import TableOfContents
-from datetime import date
 from math import floor, ceil
-import textwrap
 from xml.sax.saxutils import escape
 from reportlab.lib.validators import Auto
 
@@ -84,11 +87,13 @@ def on_first_page(canvas, doc):
     canvas.drawCentredString(WIDTH/2.0, HEIGHT/2.0-(100), "For: " + company)
     canvas.setFillColor(HexColor("#696969"))
     canvas.setFont('Times-Roman', 12)
-    today = date.today()
+    today = datetime.date.today()
+    time_formatted =  datetime.datetime.utcnow().replace(microsecond=0).strftime("%b-%d-%Y %H:%M:%S UTC")
     today_formatted = today.strftime("%b-%d-%Y")
-    canvas.drawCentredString(WIDTH/2.0, HEIGHT/2.0-(120), "Generated On: " + today_formatted)
+    canvas.drawCentredString(WIDTH/2.0, HEIGHT/2.0-(120), "Generated On: " + time_formatted)
     canvas.restoreState()
-        
+ 
+## Adds Paragraph and keeps the section together       
 def add_para(txt, style=ParaStyle, klass=Paragraph, sep=0.1):
     s = Spacer(0, sep*inch)
     para = klass(txt, style)
@@ -96,16 +101,6 @@ def add_para(txt, style=ParaStyle, klass=Paragraph, sep=0.1):
     result = KeepTogether(sect)
     return result
 
-def add_aws_cis_doughnut_chart():
-    drawing = Drawing(doc.width/2-18, doc.height/2-45)
-    donut = Doughnut()
-    donut.data = [[10, 90]]
-    donut.slices[0].fillColor = colors.blue
-    donut.slices[1].fillColor = colors.lightgrey
-    donut.slices.strokeColor = colors.white
-    donut.innerRadiusFraction = 0.75
-    drawing.add(donut)
-    fields.append(drawing)
     
 def add_compliance_risk_overview():
     frame_aws_cis = Frame(doc.leftMargin, doc.topMargin+270, doc.width/2-6, doc.height/2-30, id='doughnut1', showBoundary=0)
@@ -116,33 +111,7 @@ def add_compliance_risk_overview():
     fields.append(KeepInFrame(doc.width/2, doc.height/2, add_aws_cis_doughnut_chart(), mode='shrink'))
 
     return frame_aws_cis, frame_azure_cis
-    
-# def add_risk_score_vs_object_count_chart():
-#     drawing = Drawing(doc.width, doc.height/2)
-#     risk_scores = [(100, 35, 40, 70, 100, 55, 43, 22, 21, 81, 5)]
-#     bar = VerticalBarChart()
-#     bar.x = 0
-#     bar.y = -45
-#     bar.height = doc.height/2
-#     bar.width = doc.width
-#     bar.barWidth = 4
-#     bar.barSpacing = 1
-#     bar.data = risk_scores
-#     bar.valueAxis.valueMin = 0
-#     bar.valueAxis.valueMax = max(risk_scores[0]) * 1.2 ## graph display 1.2 times as much as max 
-#     bar.valueAxis.valueStep = int(ceil(max(risk_scores[0])/40))*10 ## Convert to neartest 10
-#     bar.categoryAxis.categoryNames = ["1-100", "101-200", "201-300", "301-400", "401-500","501-600","601-700", "701-800",
-#                                       "801-900", "901-1000", ">1000"]
-#     bar.categoryAxis.labels.dx = 0
-#     #bar.categoryAxis.labels.dy = -2
-#     bar.categoryAxis.labels.angle = 45
-#     bar.barLabelFormat = '%d'
-#     bar.barLabels.nudge = 15
-#     bar.bars[0].fillColor = colors.green
-#     bar.categoryAxis.labels.boxAnchor = 'ne'
-#     drawing.add(bar)
-#     fields.append(drawing)
-    
+         
 
 def add_top_10_objects_by_risk():
     columns = ["Risk\nScore", "Finding\nCount", "Object Name", "Object ID", "Provider", "Cloud Account"]    
@@ -180,7 +149,7 @@ def add_top_10_objects_by_risk():
 
 def add_asset_risk_overview():
     fields.append(add_para("<br></br><br></br>"))
-    fields.append(Paragraph("4.3. Asset Risk Overview", style=styles["Heading3"]))
+    fields.append(Paragraph("5.3 Asset Risk Overview", style=styles["Heading3"]))
     fields.append(add_para("Table: List of objects with the highest risk score. Shows the objects with the highest risk."))
    #fields.append(add_para("There are 1872 assets out of 15072 assets that have violations across 92 accounts."))
     fields.append(add_para("<br></br><br></br>"))    
@@ -333,7 +302,7 @@ def add_executive_summary_section():
     return exec_summary_title_frame, intro_frame, scope_frame, progress_title_frame, trend_frame_1, trend_frame_2
 
 def add_scope_section():
-    fields.append(Paragraph("2. Scope", style=styles["Heading3"]))
+    fields.append(Paragraph("2. Scope", style=styles["Heading2"]))
     config = get_config()["config"]
     
     text = '''
@@ -397,14 +366,15 @@ def add_findings_by_provider_chart():
   #  add_legend(drawing, bar)
     yLabel = Label()
     yLabel.setText("Number of Findings")
-    yLabel.fontSize = 12
+    yLabel.fontSize = 10
     yLabel.fontName = 'Helvetica'
     yLabel.dx = 250
     yLabel.dy = -30
     
     chartLabel = Label()
     chartLabel.setText("Findings by Provider")
-    chartLabel.fontSize = 14
+    chartLabel.fontSize = 10
+    chartLabel.fillColor = colors.red
     chartLabel.fontName = 'Helvetica'
     chartLabel.dx = 250
     chartLabel.dy = 160
@@ -425,9 +395,9 @@ def add_table_cloud_accounts():
     
     for each in range(len(data)):
         if each % 2 == 0:
-            bg_color = colors.lightgrey
-        else:
             bg_color = colors.whitesmoke
+        else:
+            bg_color = colors.white
 
         tb.setStyle(TableStyle([('BACKGROUND', (0, each), (-1, each), bg_color)]))
     fields.append(tb)
@@ -443,9 +413,9 @@ def add_table_findings_summary():
             
     for each in range(len(data)):
         if each % 2 == 0:
-            bg_color = colors.lightblue
-        else:
             bg_color = colors.whitesmoke
+        else:
+            bg_color = colors.white
 
         tb.setStyle(TableStyle([('BACKGROUND', (0, each), (-1, each), bg_color)]))
     fields.append(tb)
@@ -484,7 +454,7 @@ def add_table_summary_violations_frameworks():
     
     for each in range(len(data)):
         if each % 2 == 0:
-            bg_color = colors.lightblue
+            bg_color = colors.white
         else:
             bg_color = colors.whitesmoke
 
@@ -502,7 +472,7 @@ def add_cloud_security_overview_section():
     
     fields.append(NextPageTemplate("CloudSecurityOverview"))
     fields.append(FrameBreak())
-    fields.append(Paragraph("3. Cloud Security Overview", style=styles["Heading2"]))
+    fields.append(Paragraph("4. Cloud Security Overview", style=styles["Heading2"]))
     fields.append(FrameBreak())
     fields.append(KeepInFrame(doc.width/2-6, doc.height/2-30, add_table_cloud_accounts(), mode='shrink'))
     fields.append(FrameBreak())
@@ -548,7 +518,7 @@ def add_top_10_accounts_by_open_findings():
     result = add_para("Table: Top 10 Accounts by Open Findings")
     fields.append(result)
     fields.append(add_para("<br></br>"))
-    sectionTable = Table([["Provider", "Cloud Account", "Open Findings", "Suppressed\nFindings"]], [70,170,120,80], 35)
+    sectionTable = Table([["Provider", "Cloud Account", "Open Findings", "Suppressed\nFindings", "Resolved\nFindings"]], [70,170,120,70,70], 35)
     sectionTable.setStyle(TableStyle([   
                        ('BACKGROUND', (0,0), (-1, -1), HexColor("#3a7c91")),
                        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
@@ -558,14 +528,14 @@ def add_top_10_accounts_by_open_findings():
                        ('FONT', (0,0), (-1,-1), 'Helvetica')]))
     
     data = get_high_med_low_top_10_violations()
-    columns = ["", "", "High", "Medium", "Low", ""]
+    columns = ["", "", "High", "Medium", "Low", "", ""]
     for d in data:
         # Added to support word wrap for account IDs
         # In case of Azure, the subscription ID is long
         d[1] = Paragraph(d[1], style = styles["BodyText"])
 
     data.insert(0, columns)
-    accountsTable = Table(data, [70,170,40,45,35,80], 35)
+    accountsTable = Table(data, [70,170,40,45,35,70, 70], 35)
 
     accountsTable.setStyle(TableStyle([   
                        ('BACKGROUND', (0,0), (-1, 0), HexColor("#3a7c91")),    
@@ -638,6 +608,7 @@ def add_azure_findings_by_severity_chart():
     chartLabel.setText("Findings by Severity - Azure")
     chartLabel.fontSize = 10
     chartLabel.fontName = 'Helvetica'
+    chartLabel.fillColor = colors.red
     chartLabel.dx = doc.rightMargin
     chartLabel.dy = doc.height-80
     
@@ -698,7 +669,7 @@ def add_rule_violations_by_provider_chart(doc):
     
     fields.append(NextPageTemplate('RuleRiskOverview'))
     fields.append(FrameBreak())
-    fields.append(Paragraph("4.2 Rule Risk Overview", style=styles["Heading3"]))
+    fields.append(Paragraph("5.2 Rule Risk Overview", style=styles["Heading3"]))
     fields.append(add_para("A prioritized list of rule violations by cloud account. Shows the rule violations with the highest risk."))
     text = "There are " + str(get_open_resolved_findings()["open"]) + " open findings after evaluating "+ str(get_account_info()["rules"]) + " rules across AWS and Azure."
     fields.append(add_para(text))
@@ -714,12 +685,11 @@ def add_rule_violations_by_provider_chart(doc):
     fields.append(KeepInFrame(doc.width/2-6, doc.height/2, add_azure_findings_by_severity_chart(), mode='shrink'))
     fields.append(FrameBreak())
     fields.append(KeepInFrame(doc.width/2-6, doc.height/2, add_top_10_rules(), mode='shrink'))
-    #fields.append(FrameBreak())
     return frame1, frame2, frame3, frame4, frame5, frame6
 
 def add_cloud_account_risk_overview_section():
-    fields.append(Paragraph("4. Risk Overview", style=styles["Heading2"]))
-    fields.append(Paragraph("4.1 Cloud Account Risk Overview", style=styles["Heading3"]))
+    fields.append(Paragraph("5. Risk Overview", style=styles["Heading2"]))
+    fields.append(Paragraph("5.1 Cloud Account Risk Overview", style=styles["Heading3"]))
     open_resolve = get_open_resolved_findings()
     account_info = get_account_info()
     text = ''' There are ''' + str(open_resolve["open"]) + ''' open findings and ''' + str(open_resolve["resolved"]) + ''' resolved findings across ''' + str(account_info["accounts"]) + ''' accounts.
@@ -809,17 +779,23 @@ def build_report(document):
 
 
 if __name__ == '__main__':
+    
     logging.getLogger().setLevel(logging.INFO)
     
-    Config_file_name = input("\nEnter Configuration file name \n")
-    report_file_name = input("\nEnter Report file name \n")
+    parser = argparse.ArgumentParser(usage="Provide configuration file name with --config param and report file name with --output-file")
+    required_group = parser.add_argument_group('required arguments')
+    required_group.add_argument('--config', help="configuration file name in json format ex: config.json", required=True)
+    required_group.add_argument('--output-file', help="output file name ex: vss_report.pdf", required=True)
+    args = parser.parse_args()
+    
+    Config_file_name = args.config
+    report_file_name = args.output_file
     
     logging.info("\nGenerating Report ...\n")
     auth()
     gather_data()
     doc = init_report(report_file_name)  
     frameFirstPage = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id='normal')
-    #fields.append(FrameBreak())
     exec_summary_frame, intro_frame, scope_frame, progress_title_frame, trend_frame_1, trend_frame_2 = add_executive_summary_section()
     
     title_frame, account_frame, violations_summary_frame, findings_summary_frame, provider_findings_frame = add_cloud_security_overview_section()
