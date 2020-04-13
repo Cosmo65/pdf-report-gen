@@ -778,18 +778,23 @@ def build_report(document):
     logging.info("Successfully generated report !!\n")
 
 
-if __name__ == '__main__':
-    
-    logging.getLogger().setLevel(logging.INFO)
-    
+def parse_arguments():
     parser = argparse.ArgumentParser(usage="Provide configuration file name with --config param and report file name with --output-file")
     required_group = parser.add_argument_group('required arguments')
     required_group.add_argument('--config', help="configuration file name in json format ex: config.json", required=True)
     required_group.add_argument('--output-file', help="output file name ex: vss_report.pdf", required=True)
     args = parser.parse_args()
     
-    Config_file_name = args.config
+    config_file_name = args.config
     report_file_name = args.output_file
+    return config_file_name, report_file_name
+
+
+if __name__ == '__main__':
+    
+    logging.getLogger().setLevel(logging.INFO)
+    
+    Config_file_name, report_file_name = parse_arguments()
     
     logging.info("\nGenerating Report ...\n")
     auth()

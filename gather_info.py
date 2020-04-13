@@ -7,7 +7,7 @@ import calendar
 
 from operator import itemgetter
 from iso8601utils import parsers
-from generate import Config_file_name
+from generate import parse_arguments
 
 # Access Token from CSP
 access_token = ''
@@ -588,7 +588,9 @@ def get_open_resolved_findings():
 
 def get_config():
     
-    with open("config.json") as config_file:
+    Config_file_name, report_file_name = parse_arguments()
+    
+    with open(Config_file_name) as config_file:
         configuration = json.load(config_file)
     config_file.close()
     
