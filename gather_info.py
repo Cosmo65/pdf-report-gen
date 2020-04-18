@@ -723,9 +723,9 @@ def get_high_med_low_top_10_violations():
     final_result = []
     
     for account in sorted_open_accounts:
-        high = 0
-        medium = 0
-        low = 0
+        high = "N/A"
+        medium = "N/A"
+        low = "N/A"
         suppressed = 0
         resolved = 0
             

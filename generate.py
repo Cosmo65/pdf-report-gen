@@ -198,8 +198,9 @@ def add_trends_open_findings_chart():
     chartLabel = Label()
     chartLabel.setText("Trends - Total Open Findings")
     chartLabel.fontSize = 10
-    chartLabel.fillColor = colors.red
-    chartLabel.fontName = 'Helvetica'
+    chartLabel.fillColor = HexColor("#737373")
+    chartLabel.fontName = 'Helvetica-Bold'
+    
     chartLabel.dx = 250
     chartLabel.dy = 160
     
@@ -242,20 +243,20 @@ def add_trends_new_resolved_findings_chart():
     bar.categoryAxis.categoryNames = month
     bar.bars[0].strokeColor = None
     bar.bars[1].strokeColor = None
-    bar.bars[0].fillColor = HexColor("#009688")
-    bar.bars[1].fillColor = colors.orange
+    bar.bars[0].fillColor = HexColor("#E57300")
+    bar.bars[1].fillColor = HexColor("#408F00")
     
     chartLabel = Label()
     chartLabel.setText("Trends - New Findings")
     chartLabel.fontSize = 10
-    chartLabel.fillColor = colors.red
-    chartLabel.fontName = 'Helvetica'
+    chartLabel.fillColor = HexColor("#737373")
+    chartLabel.fontName = 'Helvetica-Bold'
     chartLabel.dx = 250
     chartLabel.dy = 90
     
     legend = Legend()
     legend.alignment = 'right'
-    legend.colorNamePairs = [[HexColor("#009688"), "New Findings"], [colors.orange, "Resolved Findings"]]
+    legend.colorNamePairs = [[HexColor("#E57300"), "New Findings"], [HexColor("#408F00"), "Resolved Findings"]]
     legend.columnMaximum = 2
     legend.x = 400
     legend.y = 120    
@@ -354,8 +355,8 @@ def add_findings_by_provider_chart():
     bar.categoryAxis.labels.dy = -2
     bar.categoryAxis.labels.fontName = 'Helvetica'
     bar.categoryAxis.categoryNames = ["AWS", "Azure"]
-    bar.bars[(0,0)].fillColor = HexColor("#f5990f")
-    bar.bars[(0,1)].fillColor = HexColor("#3a32a8")
+    bar.bars[(0,0)].fillColor = HexColor("#434476")
+    bar.bars[(0,1)].fillColor = HexColor("#B170DB")
     bar.barWidth = 3.5
     bar.barSpacing = 0.1
     bar.barLabelFormat = '%d'
@@ -374,8 +375,8 @@ def add_findings_by_provider_chart():
     chartLabel = Label()
     chartLabel.setText("Findings by Provider")
     chartLabel.fontSize = 10
-    chartLabel.fillColor = colors.red
-    chartLabel.fontName = 'Helvetica'
+    chartLabel.fillColor = HexColor("#737373")
+    chartLabel.fontName = 'Helvetica-Bold'
     chartLabel.dx = 250
     chartLabel.dy = 160
     
@@ -490,10 +491,10 @@ def add_top_10_rules():
     for d in data:
         d[0] = Paragraph(d[0], style = styles["BodyText"])   
     data.insert(0, columns)
-    tb = Table(data, [170,60,80,80,60], 40, repeatRows=1)
+    tb = Table(data, [170,60,80,80,60], 45, repeatRows=1)
     tb.hAlign = "CENTER"
     tb.vAlign = "MIDDLE"
-    tb.setStyle(TableStyle([   
+    tb.setStyle(TableStyle([
                        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
                        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
                        #('GRID',(0,0),(-1,-1),0.01*inch,(0,0,0,)),
@@ -600,15 +601,15 @@ def add_azure_findings_by_severity_chart():
     bar.categoryAxis.categoryNames = ["high", "medium", "low"]
     bar.barLabelFormat = '%d'
     bar.barLabels.nudge = 15
-    bar.bars[0].fillColor = colors.blue
+    bar.bars[0].fillColor = HexColor("#B170DB")
     bar.bars[0].strokeColor = None
     bar.categoryAxis.labels.boxAnchor = 'n'
     
     chartLabel = Label()
     chartLabel.setText("Findings by Severity - Azure")
     chartLabel.fontSize = 10
-    chartLabel.fontName = 'Helvetica'
-    chartLabel.fillColor = colors.red
+    chartLabel.fontName = 'Helvetica-Bold'
+    chartLabel.fillColor = HexColor("#737373")
     chartLabel.dx = doc.rightMargin
     chartLabel.dy = doc.height-80
     
@@ -652,7 +653,7 @@ def add_aws_findings_by_severity_chart():
     bar.categoryAxis.categoryNames = ["high", "medium", "low"]
     bar.barLabelFormat = '%d'
     bar.barLabels.nudge = 15
-    bar.bars[0].fillColor = colors.orange
+    bar.bars[0].fillColor = HexColor("#434476")
     bar.bars[0].strokeColor = None
     bar.categoryAxis.labels.boxAnchor = 'n'
     drawing.add(bar)
@@ -744,7 +745,7 @@ def add_findings_by_account_chart():
     bar.categoryAxis.labels.dy = 0
     bar.categoryAxis.labels.fontName = 'Helvetica'
     bar.categoryAxis.categoryNames = accounts
-    bar.bars[0].fillColor = HexColor("#009688")
+    bar.bars[0].fillColor = HexColor("#E57300")
     bar.barWidth = 2.5
     bar.categoryAxis.strokeWidth = 0
     bar.barLabelFormat = '%d'
@@ -754,7 +755,7 @@ def add_findings_by_account_chart():
     
     legend = Legend()
     legend.alignment = 'right'
-    legend.colorNamePairs = [[HexColor("#009688"), "Open Findings"]]
+    legend.colorNamePairs = [[HexColor("#E57300"), "Open Findings"]]
     legend.columnMaximum = 2
     legend.x = 400
     legend.y = 470
